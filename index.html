@@ -26,8 +26,9 @@
 
     <!-- Panneau de contrôle flottant Glassmorphisme -->
     <aside class="panneau-flottant" id="panneau-controle">
+      <!-- Poignée drag mobile (uniquement visible sur smartphone) -->
+      <div class="drag-handle" aria-hidden="true"></div>
       
-      <!-- En-tête de l'application -->
       <header class="en-tete-app">
         <div class="titre-groupe">
           <h1 data-i18n="titreApp">Générateur de parcours</h1>
@@ -124,7 +125,7 @@
 
       <!-- Panneau des Résultats & Statistiques -->
       <section id="panneau-resultats" class="panneau-resultats masque">
-        <div class="badge-boucle" data-i18n="boucleFermee">🔄 Boucle fermée (Départ = Arrivée)</div>
+        <div class="badge-boucle" data-i18n="boucleFermee">🔄 Boucle fermée (départ = arrivée)</div>
         <div class="grille-stats">
           <div class="carte-stat">
             <div class="valeur" id="stat-distance">0 km</div>
@@ -200,7 +201,7 @@
     <div class="contenu-modal">
       <h2 data-i18n="reglagesApi">Configuration API OpenRouteService</h2>
       <p data-i18n="clePerso">Votre clé API personnelle OpenRouteService (optionnel) :</p>
-      <input type="text" id="input-ors-key" class="champ-texte" placeholder="Ex: 5b3ce3597851110001cf6248..." style="margin-bottom: 12px;">
+      <input type="password" id="input-ors-key" class="champ-texte" placeholder="Ex: 5b3ce3597851110001cf6248..." style="margin-bottom: 12px;">
       <p style="font-size: 0.8rem; color: var(--couleur-texte-secondaire);" data-i18n="modeHybrideActif">Mode hybride actif : calcul d'itinéraire optimisé avec fallback intelligent.</p>
       <div style="display: flex; gap: 10px; margin-top: 16px;">
         <button id="btn-sauvegarder-api" class="btn-principal" data-i18n="sauvegarder">Sauvegarder</button>
