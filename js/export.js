@@ -10,8 +10,8 @@ class ExportateurDeParcours {
    * 
    * @param {Object} donneesRoute - Données du parcours retournées par GenerateurDeParcours
    */
-  static telechargerGpx(donneesRoute) {
-    if (!donneesRoute || !donneesRoute.coordonnees) return;
+  static genererBlobGpx(donneesRoute) {
+    if (!donneesRoute || !donneesRoute.coordonnees) return null;
 
     const nomParcours = `Parcours_${donneesRoute.discipline.nom}_${donneesRoute.distanceKm}km`;
     const horodatage = new Date().toISOString();
@@ -33,23 +33,34 @@ class ExportateurDeParcours {
     <trkseg>
 `;
 
-    // Ajout de chaque point de trace [lng, lat, ele]
     donneesRoute.coordonnees.forEach(coord => {
       const lng = coord[0];
       const lat = coord[1];
       const ele = coord.length > 2 ? coord[2] : 0;
-
       xmlGpx += `      <trkpt lat="${lat}" lon="${lng}">\n        <ele>${ele}</ele>\n      </trkpt>\n`;
     });
 
     xmlGpx += `    </trkseg>\n  </trk>\n</gpx>`;
+    
+    return {
+      blob: new Blob([xmlGpx], { type: 'application/gpx+xml;charset=utf-8' }),
+      nomFichier: `${nomParcours.toLowerCase().replace(/[^a-z0-9]/g, '_')}.gpx`
+    };
+  }
 
-    // Téléchargement du fichier
-    const blob = new Blob([xmlGpx], { type: 'application/gpx+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+  /**
+   * Télécharge un fichier GPX du parcours généré.
+   * 
+   * @param {Object} donneesRoute - Données du parcours retournées par GenerateurDeParcours
+   */
+  static telechargerGpx(donneesRoute) {
+    const dataGpx = this.genererBlobGpx(donneesRoute);
+    if (!dataGpx) return;
+
+    const url = URL.createObjectURL(dataGpx.blob);
     const lien = document.createElement('a');
     lien.href = url;
-    lien.download = `${nomParcours.toLowerCase().replace(/[^a-z0-9]/g, '_')}.gpx`;
+    lien.download = dataGpx.nomFichier;
     document.body.appendChild(lien);
     lien.click();
     document.body.removeChild(lien);
@@ -94,6 +105,40 @@ class ExportateurDeParcours {
    */
   static ouvrirStrava() {
     window.open('https://www.strava.com/routes/new', '_blank');
+  }
+
+  /**
+   * Tente de partager le parcours via l'API Web Share native (avec fichier GPX si supporté).
+   * Renvoie le lien généré en fallback si le partage natif échoue ou n'est pas supporté.
+   */
+  static async declencherPartage(donneesRoute, lat, lng, distanceKm, discipline, direction = 'aleatoire') {
+    const lien = this.genererLienPartage(lat, lng, distanceKm, discipline, direction);
+    
+    // Test du support Web Share API avec des fichiers
+    if (navigator.share && navigator.canShare) {
+      const dataGpx = this.genererBlobGpx(donneesRoute);
+      if (dataGpx) {
+        const file = new File([dataGpx.blob], dataGpx.nomFichier, { type: 'application/gpx+xml' });
+        const shareData = {
+          title: 'Mon parcours sportif',
+          text: `Découvre ce parcours de ${distanceKm} km généré pour ${donneesRoute.discipline.nom}. Tu peux l'importer directement ou le modifier ici : ${lien}`,
+          files: [file]
+        };
+
+        if (navigator.canShare(shareData)) {
+          try {
+            await navigator.share(shareData);
+            return 'partage-natif-ok';
+          } catch (e) {
+            // L'utilisateur a peut-être annulé le partage, on continue vers le fallback si erreur critique
+            console.warn("Le partage natif a été annulé ou a échoué:", e);
+          }
+        }
+      }
+    }
+
+    // Fallback: retourne le lien pour affichage dans la modale
+    return lien;
   }
 
   /**

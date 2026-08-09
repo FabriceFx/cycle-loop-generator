@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
   btnKomoot.addEventListener('click', () => ExportateurDeParcours.ouvrirKomoot());
   btnStrava.addEventListener('click', () => ExportateurDeParcours.ouvrirStrava());
   
-  btnPartager.addEventListener('click', () => {
+  btnPartager.addEventListener('click', async () => {
     const pos = carteMgr.positionDepart;
     if (!pos || pos.length < 2) {
       alert(TRADUCTIONS[langueActuelle].erreurCalcul);
@@ -280,16 +280,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const dist = inputDistance.value;
     const disc = selectDiscipline.value;
     const dir = selectDirection ? selectDirection.value : 'aleatoire';
-    const lien = ExportateurDeParcours.genererLienPartage(pos[0], pos[1], dist, disc, dir);
+    
+    // Tente de partager nativement, ou renvoie le lien en fallback
+    const resultat = await ExportateurDeParcours.declencherPartage(donneesRouteCourante, pos[0], pos[1], dist, disc, dir);
 
-    // Afficher la modale avec le lien
-    const textareaLien = document.getElementById('textarea-lien-partage');
-    const msgOk = document.getElementById('msg-copie-ok');
-    textareaLien.value = lien;
-    msgOk.style.display = 'none';
-    ouvrirModale('modal-partager');
-    // Sélectionner automatiquement le texte pour faciliter la copie manuelle
-    setTimeout(() => textareaLien.select(), 100);
+    if (resultat !== 'partage-natif-ok') {
+      // Afficher la modale avec le lien de fallback
+      const textareaLien = document.getElementById('textarea-lien-partage');
+      const msgOk = document.getElementById('msg-copie-ok');
+      textareaLien.value = resultat;
+      msgOk.style.display = 'none';
+      ouvrirModale('modal-partager');
+      // Sélectionner automatiquement le texte pour faciliter la copie manuelle
+      setTimeout(() => textareaLien.select(), 100);
+    }
   });
 
   document.getElementById('btn-copier-lien').addEventListener('click', async () => {
