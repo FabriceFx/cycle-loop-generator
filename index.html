@@ -1,23 +1,29 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Générateur de Parcours Sportif (VTT, Route, Gravel) | faucheux.bzh</title>
-  <meta name="description" content="Générez instantanément des boucles sur-mesure pour VTT, Vélo de Route ou Gravel selon votre géolocalisation et le nombre de km souhaité. Export GPX gratuit.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Générateur de parcours sportif (Vélo, Running, Marche) | faucheux.bzh</title>
+  <meta name="description"
+    content="Générez instantanément des boucles sur-mesure pour Vélo (VTT, Route, Gravel), Course à pied et Randonnée selon votre géolocalisation et le nombre de km souhaité. Export GPX gratuit.">
   <meta name="author" content="Fabrice Faucheux (https://faucheux.bzh)">
 
   <!-- Polices Google Fonts (Outfit & Inter) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
 
   <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
   <!-- Feuille de style personnalisée -->
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
+
 <body class="theme-sombre">
 
   <div id="app-container">
@@ -28,57 +34,45 @@
     <aside class="panneau-flottant" id="panneau-controle">
       <!-- Poignée drag mobile (uniquement visible sur smartphone) -->
       <div class="drag-handle" aria-hidden="true"></div>
-      
+
       <header class="en-tete-app">
         <div class="titre-groupe">
           <h1 data-i18n="titreApp">Générateur de parcours</h1>
           <p data-i18n="sousTitreApp">Boucles VTT, route & gravel sur-mesure</p>
         </div>
-        <div class="actions-en-tete">
-          <button id="btn-toggle-lang" class="btn-icone" title="Changer la langue">FR</button>
-          <button id="btn-toggle-theme" class="btn-icone" title="Mode Sombre/Clair">🌙</button>
-          <button id="btn-a-propos" class="btn-icone" title="À propos">ℹ️</button>
-          <button id="btn-config-api" class="btn-icone" title="Paramètres API">⚙️</button>
+        <!-- Conteneur pour les actions avec le bouton menu mobile -->
+        <div class="actions-container" style="position: relative;">
+          <button id="btn-menu-mobile" class="btn-icone menu-mobile-toggle" aria-label="Menu" title="Menu">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="5" r="1.5"></circle>
+              <circle cx="12" cy="12" r="1.5"></circle>
+              <circle cx="12" cy="19" r="1.5"></circle>
+            </svg>
+          </button>
+
+          <div class="actions-en-tete" id="menu-actions">
+            <a href="/" class="btn-icone" title="Retour au site" data-i18n-title="retourSite" style="text-decoration: none;">🏠</a>
+            <button id="btn-toggle-lang" class="btn-icone" title="Changer la langue">FR</button>
+            <button id="btn-toggle-theme" class="btn-icone" title="Mode Sombre/Clair">🌙</button>
+            <button id="btn-a-propos" class="btn-icone" title="À propos">ℹ️</button>
+            <button id="btn-config-api" class="btn-icone" title="Paramètres API">⚙️</button>
+          </div>
         </div>
       </header>
 
-      <!-- Choix de la discipline -->
+      <!-- 1. Où ? (Point de départ) -->
       <div class="groupe-formulaire">
-        <label for="select-discipline" data-i18n="discipline">Discipline</label>
-        <select id="select-discipline" class="champ-select">
-          <option value="gravel">🚵‍♂️ Gravel (Chemins, pistes & petites routes)</option>
-          <option value="vtt">🚵 VTT / VTC (Sentiers, forêt & dénivelé)</option>
-          <option value="route">🚴 Route (Asphalte & pistes cyclables)</option>
-        </select>
+        <label for="input-recherche" data-i18n="pointDepart">Point de départ</label>
+        <div class="recherche-rang">
+          <input type="text" id="input-recherche" class="champ-texte" placeholder="Rechercher une ville, adresse..."
+            data-i18n="rechercherLieu">
+          <button id="btn-rechercher" class="btn-secondaire" style="flex: none; padding: 0 16px;">🔍</button>
+          <button id="btn-geoloc" class="btn-geoloc" title="Ma position actuelle" data-i18n="maPosition">📍</button>
+        </div>
       </div>
 
-      <!-- Préférence de Réseau Routier -->
-      <div class="groupe-formulaire">
-        <label for="select-type-routes" data-i18n="typeRoutes">Réseau routier souhaité</label>
-        <select id="select-type-routes" class="champ-select">
-          <option value="tranquille">🌿 Petites routes & voies communales (Calme & sécurité)</option>
-          <option value="equilibre" selected>⚖️ Équilibré (Départementales & communales)</option>
-          <option value="rapide">⚡ Direct / Axes majeurs (Grandes départementales & nationales)</option>
-        </select>
-        <label class="container-switch" style="margin-top: 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; color: var(--couleur-texte-secondaire);">
-          <input type="checkbox" id="check-eviter-nationales" style="accent-color: var(--couleur-primaire); width: 16px; height: 16px;">
-          <span data-i18n="eviterGrandesRoutes">Éviter les grandes routes & nationales</span>
-        </label>
-      </div>
-
-      <!-- Choix de la direction du parcours -->
-      <div class="groupe-formulaire">
-        <label for="select-direction" data-i18n="directionParcours">Direction souhaitée</label>
-        <select id="select-direction" class="champ-select">
-          <option value="aleatoire" selected data-i18n="dirAleatoire">🎲 Aléatoire (toutes directions)</option>
-          <option value="nord" data-i18n="dirNord">⬆️ Nord (vers le nord)</option>
-          <option value="est" data-i18n="dirEst">➡️ Est (vers l'est)</option>
-          <option value="sud" data-i18n="dirSud">⬇️ Sud (vers le sud)</option>
-          <option value="ouest" data-i18n="dirOuest">⬅️ Ouest (vers l'ouest)</option>
-        </select>
-      </div>
-
-      <!-- Distance souhaitée avec Slider & Pills -->
+      <!-- 2. Combien de temps ? (Distance) -->
       <div class="groupe-formulaire">
         <div class="distance-header">
           <label for="slider-distance" data-i18n="distanceSouhaitee">Distance souhaitée</label>
@@ -97,17 +91,70 @@
         </div>
       </div>
 
-      <!-- Point de départ & Géolocalisation -->
+      <!-- 3. Quel vélo ? (Discipline & Vitesse) -->
       <div class="groupe-formulaire">
-        <label for="input-recherche" data-i18n="pointDepart">Point de départ</label>
-        <div class="recherche-rang">
-          <input type="text" id="input-recherche" class="champ-texte" placeholder="Rechercher une ville, adresse..." data-i18n="rechercherLieu">
-          <button id="btn-rechercher" class="btn-secondaire" style="flex: none; padding: 0 16px;">🔍</button>
-          <button id="btn-geoloc" class="btn-geoloc" title="Ma position actuelle" data-i18n="maPosition">📍</button>
+        <label for="select-discipline" data-i18n="discipline">Discipline</label>
+        <select id="select-discipline" class="champ-select" style="margin-bottom: 10px;">
+          <option value="gravel">🚵‍♂️ Gravel (Chemins, pistes & petites routes)</option>
+          <option value="vtt">🚵 VTT / VTC (Sentiers, forêt & dénivelé)</option>
+          <option value="route">🚴 Route (Asphalte & pistes cyclables)</option>
+          <option value="running">🏃 Running / Trail</option>
+          <option value="marche">🥾 Marche / Rando</option>
+        </select>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <label for="input-vitesse-perso"
+            style="font-size: 0.85rem; color: var(--couleur-texte-secondaire); margin: 0; font-weight: normal;">Vitesse
+            sur le plat estimée :</label>
+          <div style="display: flex; align-items: center; gap: 5px; width: 100px;">
+            <input type="number" id="input-vitesse-perso" class="champ-texte" placeholder="Auto" min="5" max="50"
+              style="padding: 6px; text-align: center; border-radius: 6px;">
+            <span style="font-size: 0.85rem; color: var(--couleur-texte-secondaire);">km/h</span>
+          </div>
         </div>
       </div>
 
-      <!-- Choix du fond de carte -->
+      <hr style="border: 0; border-top: 1px solid var(--couleur-bordure); margin: 20px 0;">
+
+      <!-- 4. Comment ? (Personnalisation du tracé) -->
+      <div class="groupe-formulaire">
+        <label for="select-type-routes" data-i18n="typeRoutes">Réseau routier souhaité</label>
+        <select id="select-type-routes" class="champ-select">
+          <option value="tranquille">🌿 Petites routes & voies communales (Calme & sécurité)</option>
+          <option value="equilibre" selected>⚖️ Équilibré (Départementales & communales)</option>
+          <option value="rapide">⚡ Direct / Axes majeurs (Grandes départementales & nationales)</option>
+        </select>
+        <label class="container-switch"
+          style="margin-top: 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; color: var(--couleur-texte-secondaire);">
+          <input type="checkbox" id="check-eviter-nationales"
+            style="accent-color: var(--couleur-primaire); width: 16px; height: 16px;">
+          <span data-i18n="eviterGrandesRoutes">Éviter les grandes routes & nationales</span>
+        </label>
+      </div>
+
+      <div class="groupe-formulaire">
+        <label for="select-direction" data-i18n="directionParcours">Direction souhaitée</label>
+        <select id="select-direction" class="champ-select">
+          <option value="aleatoire" selected data-i18n="dirAleatoire">🎲 Aléatoire (toutes directions)</option>
+          <option value="nord" data-i18n="dirNord">⬆️ Nord (vers le nord)</option>
+          <option value="est" data-i18n="dirEst">➡️ Est (vers l'est)</option>
+          <option value="sud" data-i18n="dirSud">⬇️ Sud (vers le sud)</option>
+          <option value="ouest" data-i18n="dirOuest">⬅️ Ouest (vers l'ouest)</option>
+        </select>
+      </div>
+
+      <div class="groupe-formulaire" style="margin-top: -10px;">
+        <label class="checkbox-container">
+          <input type="checkbox" id="check-vent-intelligent">
+          <span class="checkmark"></span>
+          <span data-i18n="ventIntelligent" style="font-weight: 500; color: var(--couleur-primaire);">🌬️ Optimiser le
+            sens selon le vent (Météo en direct)</span>
+        </label>
+      </div>
+
+      <hr style="border: 0; border-top: 1px solid var(--couleur-bordure); margin: 20px 0;">
+
+      <!-- 5. Affichage (Fond de carte) -->
       <div class="groupe-formulaire">
         <label for="select-fond-carte" data-i18n="fondsDeCarte">Fond de carte</label>
         <select id="select-fond-carte" class="champ-select">
@@ -123,9 +170,44 @@
         <button id="btn-variante" class="btn-secondaire" data-i18n="autreVariante">Autre variante</button>
       </div>
 
+      <!-- Bloc d'explications (Empty State) -->
+      <div id="panneau-explications"
+        style="background: var(--glass-bg); padding: 15px; border-radius: 12px; margin-top: 20px; font-size: 0.9rem; line-height: 1.5; color: var(--couleur-texte-secondaire); border: 1px solid var(--couleur-bordure);">
+        <h3 data-i18n="tutoTitre" style="margin-top: 0; color: var(--couleur-primaire); font-size: 1rem; margin-bottom: 12px;">Comment ça
+          marche ?</h3>
+        <ul style="padding-left: 0; margin: 0; list-style: none; display: flex; flex-direction: column; gap: 10px;">
+          <li><strong data-i18n="tutoEtape1Titre">📍 1. Départ :</strong> <span data-i18n="tutoEtape1Desc">Saisissez une ville ou utilisez la cible pour vous géolocaliser.</span></li>
+          <li><strong data-i18n="tutoEtape2Titre">🎛️ 2. Réglages :</strong> <span data-i18n="tutoEtape2Desc">Ajustez le curseur kilométrique et choisissez votre monture (Route, Gravel, VTT).</span></li>
+          <li><strong data-i18n="tutoEtape3Titre">⚡ 3. Génération :</strong> <span data-i18n="tutoEtape3Desc1">Cliquez sur Générer ! L'algorithme tracera une boucle sportive sur-mesure. Pas satisfait ? Cliquez sur</span> <em data-i18n="tutoEtape3Desc2">Autre variante</em> !</li>
+        </ul>
+      </div>
+
       <!-- Panneau des Résultats & Statistiques -->
       <section id="panneau-resultats" class="panneau-resultats masque">
         <div class="badge-boucle" data-i18n="boucleFermee">🔄 Boucle fermée (départ = arrivée)</div>
+
+        <!-- Barre de surface (Gravel/VTT) -->
+        <div id="conteneur-surfaces" style="display: none; margin-top: 5px; margin-bottom: 15px;">
+          <div
+            style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px; color: var(--couleur-texte-secondaire);">
+            <span data-i18n="surfacesTitle">Surfaces du sol</span>
+          </div>
+          <div class="barre-surfaces"
+            style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: #e2e8f0;">
+            <div id="barre-asphalte" class="segment-surface" style="background-color: #64748b; width: 0%;"
+              title="Asphalte"></div>
+            <div id="barre-gravier" class="segment-surface" style="background-color: #f59e0b; width: 0%;"
+              title="Gravier / Piste"></div>
+            <div id="barre-terre" class="segment-surface" style="background-color: #10b981; width: 0%;"
+              title="Terre / Chemin"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-top: 4px;">
+            <span id="txt-asphalte" style="color: #64748b; font-weight: 600;">Asphalte 0%</span>
+            <span id="txt-gravier" style="color: #f59e0b; font-weight: 600;">Gravier 0%</span>
+            <span id="txt-terre" style="color: #10b981; font-weight: 600;">Terre 0%</span>
+          </div>
+        </div>
+
         <div class="grille-stats">
           <div class="carte-stat">
             <div class="valeur" id="stat-distance">0 km</div>
@@ -150,6 +232,10 @@
           <div class="carte-stat">
             <div class="valeur" id="stat-alt-max">0 m</div>
             <div class="libelle" data-i18n="altitudeMax">Alt. max</div>
+          </div>
+          <div class="carte-stat" id="carte-difficulte">
+            <div class="valeur" id="stat-difficulte" style="font-size: 1.1rem; padding-top: 4px;">--</div>
+            <div class="libelle" data-i18n="difficulte">Difficulté</div>
           </div>
         </div>
 
@@ -181,17 +267,39 @@
     <div id="texte-chargement" class="texte-spinner">Calcul du parcours en cours...</div>
   </div>
 
+  <!-- Modale Partager -->
+  <div id="modal-partager" class="fenetre-modale">
+    <div class="overlay-modal"></div>
+    <div class="contenu-modal">
+      <h2 data-i18n="partagerTitre">🔗 Partager ce parcours</h2>
+      <p data-i18n="partagerExplication">Copiez ce lien pour partager la configuration de ce parcours :</p>
+      <textarea id="textarea-lien-partage" class="zone-code-iframe" readonly
+        style="height:60px; margin-bottom: 12px;"></textarea>
+      <div style="display: flex; gap: 10px; margin-top: 8px;">
+        <button id="btn-copier-lien" class="btn-principal" data-i18n="copierLien">📋 Copier</button>
+        <button class="btn-secondaire btn-fermer-modal" data-i18n="fermer">Fermer</button>
+      </div>
+      <p id="msg-copie-ok" style="display:none; color: var(--couleur-primaire); margin-top: 10px; font-weight: 600;"
+        data-i18n="lienCopie">✅ Lien copié !</p>
+    </div>
+  </div>
+
   <!-- Modale À Propos -->
   <div id="modal-a-propos" class="fenetre-modale">
     <div class="overlay-modal"></div>
     <div class="contenu-modal">
       <h2 data-i18n="texteAProposTitre">À propos du Générateur de Parcours</h2>
-      <p data-i18n="texteAPropos1">Cet outil web moderne et gratuit permet de créer instantanément des boucles sur-mesure pour le VTT, la Route et le Gravel en fonction de votre géolocalisation et du kilométrage souhaité.</p>
-      <p data-i18n="texteAPropos2">Développé spécialement par Fabrice Faucheux pour intégration directe sur faucheux.bzh.</p>
+      <p data-i18n="texteAPropos1">Cet outil web moderne et gratuit permet de créer instantanément des boucles
+        sur-mesure pour le Vélo (VTT, Route, Gravel), la Course à pied et la Randonnée en fonction de votre géolocalisation et du kilométrage souhaité.
+      </p>
+      <p data-i18n="texteAPropos2">Développé spécialement par Fabrice Faucheux pour intégration directe sur
+        faucheux.bzh.</p>
       <hr style="border-color: var(--couleur-bordure); margin: 16px 0;">
       <p><strong data-i18n="texteDeveloppeur">Développeur : Fabrice Faucheux</strong></p>
-      <p>🌐 <a href="https://faucheux.bzh" target="_blank" style="color: var(--couleur-primaire); text-decoration: none;">https://faucheux.bzh</a></p>
-      <button class="btn-principal btn-fermer-modal" style="width: 100%; margin-top: 16px;" data-i18n="fermer">Fermer</button>
+      <p>🌐 <a href="https://faucheux.bzh" target="_blank"
+          style="color: var(--couleur-primaire); text-decoration: none;">https://faucheux.bzh</a></p>
+      <button class="btn-principal btn-fermer-modal" style="width: 100%; margin-top: 16px;"
+        data-i18n="fermer">Fermer</button>
     </div>
   </div>
 
@@ -201,8 +309,10 @@
     <div class="contenu-modal">
       <h2 data-i18n="reglagesApi">Configuration API OpenRouteService</h2>
       <p data-i18n="clePerso">Votre clé API personnelle OpenRouteService (optionnel) :</p>
-      <input type="password" id="input-ors-key" class="champ-texte" placeholder="Ex: 5b3ce3597851110001cf6248..." style="margin-bottom: 12px;">
-      <p style="font-size: 0.8rem; color: var(--couleur-texte-secondaire);" data-i18n="modeHybrideActif">Mode hybride actif : calcul d'itinéraire optimisé avec fallback intelligent.</p>
+      <input type="password" id="input-ors-key" class="champ-texte" placeholder="Ex: 5b3ce3597851110001cf6248..."
+        style="margin-bottom: 12px;">
+      <p style="font-size: 0.8rem; color: var(--couleur-texte-secondaire);" data-i18n="modeHybrideActif">Mode hybride
+        actif : calcul d'itinéraire optimisé avec fallback intelligent.</p>
       <div style="display: flex; gap: 10px; margin-top: 16px;">
         <button id="btn-sauvegarder-api" class="btn-principal" data-i18n="sauvegarder">Sauvegarder</button>
         <button class="btn-secondaire btn-fermer-modal" data-i18n="fermer">Fermer</button>
@@ -215,22 +325,26 @@
     <div class="overlay-modal"></div>
     <div class="contenu-modal">
       <h2 data-i18n="codeIframeTitre">Code d'intégration Iframe</h2>
-      <p data-i18n="codeIframeExplication">Copiez ce code HTML pour intégrer le générateur sur votre site WordPress faucheux.bzh :</p>
+      <p data-i18n="codeIframeExplication">Copiez ce code HTML pour intégrer le générateur sur votre site WordPress
+        faucheux.bzh :</p>
       <textarea id="textarea-iframe" class="zone-code-iframe" readonly></textarea>
-      <button class="btn-principal btn-fermer-modal" style="width: 100%; margin-top: 10px;" data-i18n="fermer">Fermer</button>
+      <button class="btn-principal btn-fermer-modal" style="width: 100%; margin-top: 10px;"
+        data-i18n="fermer">Fermer</button>
     </div>
   </div>
 
   <!-- Scripts JavaScript -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <script src="js/config.js"></script>
-  <script src="js/translations.js"></script>
-  <script src="js/routing.js"></script>
-  <script src="js/map.js"></script>
-  <script src="js/chart.js"></script>
-  <script src="js/export.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/config.js?v=4"></script>
+  <script src="js/translations.js?v=3"></script>
+  <script src="js/routing.js?v=8"></script>
+  <script src="js/map.js?v=2"></script>
+  <script src="js/chart.js?v=2"></script>
+  <script src="js/export.js?v=2"></script>
+  <script src="js/app.js?v=7"></script>
 </body>
+
 </html>

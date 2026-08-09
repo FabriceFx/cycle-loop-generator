@@ -43,14 +43,41 @@ class GenerateurDeParcours {
    * @param {string} prefRoute - 'tranquille' | 'equilibre' | 'rapide'
    * @param {boolean} eviterNationales - Si true, force l'évitement des axes majeurs
    * @param {string} directionPref - 'aleatoire' | 'nord' | 'est' | 'sud' | 'ouest'
+   * @param {boolean} ventIntelligent - Si true, optimise le sens selon la météo
+   * @param {number|null} vitessePerso - Vitesse personnalisée sur le plat (km/h)
    * @returns {Promise<Object>} Données de la route calculée avec métriques et altitudes
    */
-  async genererBoucle(lat, lng, distanceKm, discipline, nouvelleGraine = false, prefRoute = 'equilibre', eviterNationales = false, directionPref = 'aleatoire') {
+  async genererBoucle(lat, lng, distanceKm, discipline, nouvelleGraine = false, prefRoute = 'equilibre', eviterNationales = false, directionPref = 'aleatoire', ventIntelligent = false, vitessePerso = null) {
     if (nouvelleGraine) {
       this.graineCourante = Math.floor(Math.random() * 100);
     }
 
     const profilInfo = CONFIG.profils[discipline] || CONFIG.profils.gravel;
+
+    // --- OPTIMISATION VENT (MÉTÉO) ---
+    if (ventIntelligent) {
+      try {
+        const urlMeteo = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=wind_direction_10m`;
+        const reponseMeteo = await fetch(urlMeteo);
+        if (reponseMeteo.ok) {
+          const jsonMeteo = await reponseMeteo.json();
+          const capVent = jsonMeteo.current.wind_direction_10m; // 0=Nord, 90=Est, 180=Sud, 270=Ouest
+          
+          // Le vent vient de 'capVent'. 
+          // Si le vent vient de l'Ouest (270°), il souffle vers l'Est.
+          // Pour l'avoir de face à l'aller, il faut partir vers l'Ouest (270°).
+          // On va convertir le cap en direction cardinale privilégiée.
+          if (capVent >= 315 || capVent < 45) directionPref = 'nord';
+          else if (capVent >= 45 && capVent < 135) directionPref = 'est';
+          else if (capVent >= 135 && capVent < 225) directionPref = 'sud';
+          else directionPref = 'ouest';
+          
+          console.log(`🌬️ Vent intelligent activé : vent venant de ${capVent}°. Cap initial forcé vers le ${directionPref}.`);
+        }
+      } catch (e) {
+        console.warn("Impossible de récupérer la météo pour le vent :", e);
+      }
+    }
 
     // 1. Géométrie : on génère les waypoints mathématiques qui forcent la forme et la direction
     const waypoints = this.genererWaypointsGeometriques(lat, lng, distanceKm, this.graineCourante, prefRoute, eviterNationales, directionPref);
@@ -66,7 +93,34 @@ class GenerateurDeParcours {
           
           coords = this.purgerToutesLesAntennes(coords);
           const coordsAvecAltitude = await this.enrichirAvecAltitudes(coords);
-          return this.traiterCoordonneesEtCalculerMetriques(coordsAvecAltitude, distMetres, profilInfo);
+          let metriques = this.traiterCoordonneesEtCalculerMetriques(coordsAvecAltitude, distMetres, profilInfo, vitessePerso);
+
+          // Extraction des surfaces si disponibles (ORS uniquement)
+          if (donneesOrs.features[0].properties && donneesOrs.features[0].properties.extras && donneesOrs.features[0].properties.extras.surface) {
+            const surfaceSummary = donneesOrs.features[0].properties.extras.surface.summary;
+            let asphalte = 0, gravier = 0, terre = 0;
+            let totalAmount = 0;
+            
+            surfaceSummary.forEach(s => {
+              const val = s.value;
+              const amt = s.amount;
+              totalAmount += amt;
+              // Classification simplifiée selon ORS surface values
+              if ([1, 3, 4, 5, 6].includes(val)) asphalte += amt;
+              else if ([2, 8, 9, 10].includes(val)) gravier += amt;
+              else terre += amt; // 7, 11, 12, 13, 14, etc.
+            });
+            
+            if (totalAmount > 0) {
+              metriques.surfaces = {
+                asphalte: Math.round((asphalte / totalAmount) * 100),
+                gravier: Math.round((gravier / totalAmount) * 100),
+                terre: Math.round((terre / totalAmount) * 100)
+              };
+            }
+          }
+          
+          return metriques;
         }
       } catch (erreur) {
         console.warn("Échec OpenRouteService Directions, basculement vers OSRM...", erreur);
@@ -74,7 +128,7 @@ class GenerateurDeParcours {
     }
 
     // 3. Fallback géométrique OSRM
-    return await this.calculerViaOsrmDirections(waypoints, distanceKm, profilInfo, lat, lng);
+    return await this.calculerViaOsrmDirections(waypoints, distanceKm, profilInfo, lat, lng, vitessePerso);
   }
 
   /**
@@ -134,6 +188,7 @@ class GenerateurDeParcours {
     const corps = {
       coordinates: waypoints,
       options: optionsOrs,
+      extra_info: ["surface"],
       elevation: false // L'élévation est gérée par Open-Meteo
     };
 
@@ -153,11 +208,12 @@ class GenerateurDeParcours {
   /**
    * Routage via le moteur OSRM (Mode Hybride autonome de secours).
    */
-  async calculerViaOsrmDirections(waypoints, distanceKm, profilInfo, latDepart, lngDepart) {
-    // Requête OSRM (Profil biking avec radiuses de tolérance et continue_straight)
+  async calculerViaOsrmDirections(waypoints, distanceKm, profilInfo, latDepart, lngDepart, vitessePerso = null) {
+    // Requête OSRM (Profil dynamique avec radiuses de tolérance et continue_straight)
     const coordsString = waypoints.map(wp => `${wp[0]},${wp[1]}`).join(';');
     const radiuses = waypoints.map(() => '400').join(';');
-    const osrmUrl = `https://router.project-osrm.org/route/v1/cycling/${coordsString}?overview=full&geometries=geojson&steps=true&continue_straight=true&radiuses=${radiuses}`;
+    const codeOsrm = profilInfo.codeOsrm || 'cycling';
+    const osrmUrl = `https://router.project-osrm.org/route/v1/${codeOsrm}/${coordsString}?overview=full&geometries=geojson&steps=true&radiuses=${radiuses}`;
 
     let coordsGeojson = [];
     let distanceMetres = 0;
@@ -175,8 +231,8 @@ class GenerateurDeParcours {
       console.warn("Erreur OSRM fallback:", e);
     }
 
-    // Si OSRM n'a pas pu renvoyer la géométrie, construction d'un chemin interpolé lisse
-    if (coordsGeojson.length === 0) {
+    // Si OSRM n'a pas pu renvoyer la géométrie ou si la route est anormalement courte (< 10% de la distance demandée)
+    if (coordsGeojson.length === 0 || distanceMetres < (distanceKm * 100)) {
       coordsGeojson = waypoints;
       distanceMetres = distanceKm * 1000;
     }
@@ -196,7 +252,7 @@ class GenerateurDeParcours {
     // Enrichissement en altitudes via Open-Meteo Elevation API
     const coordsAvecAltitude = await this.enrichirAvecAltitudes(coordsGeojson);
 
-    return this.traiterCoordonneesEtCalculerMetriques(coordsAvecAltitude, distanceMetres, profilInfo);
+    return this.traiterCoordonneesEtCalculerMetriques(coordsAvecAltitude, distanceMetres, profilInfo, vitessePerso);
   }
 
   /**
@@ -222,22 +278,41 @@ class GenerateurDeParcours {
         const reponse = await fetch(urlElevation);
         if (reponse.ok) {
           const json = await reponse.json();
-          return json.elevation || new Array(lot.length).fill(0);
+          return json.elevation || new Array(lot.length).fill(null);
         }
       } catch (e) {
         console.warn("Erreur de récupération des altitudes pour un lot:", e);
       }
-      return new Array(lot.length).fill(0); // Fallback silencieux
+      return new Array(lot.length).fill(null); // Fallback silencieux sur null
     });
 
     // 3. Exécution parallèle
     const resultatsLots = await Promise.all(requetes);
     const toutesAltitudes = resultatsLots.flat();
 
+    // Interpolation des valeurs null/manquantes pour éviter les "trous" à 0m
+    let derniereAltValide = null;
+    for (let i = 0; i < toutesAltitudes.length; i++) {
+      if (toutesAltitudes[i] !== null && toutesAltitudes[i] !== undefined) {
+        derniereAltValide = toutesAltitudes[i];
+        break;
+      }
+    }
+    
+    // Si toutes les API ont échoué, on évite 0 (mettons 50m par défaut pour ne pas fausser complètement l'affichage)
+    if (derniereAltValide === null) derniereAltValide = 50;
+
+    for (let i = 0; i < toutesAltitudes.length; i++) {
+      if (toutesAltitudes[i] === null || toutesAltitudes[i] === undefined) {
+        toutesAltitudes[i] = derniereAltValide;
+      } else {
+        derniereAltValide = toutesAltitudes[i];
+      }
+    }
+
     // 4. Association 1-pour-1
     const coords3D = coords2D.map((coord, index) => {
-      const alt = toutesAltitudes[index] !== undefined ? toutesAltitudes[index] : 0;
-      return [coord[0], coord[1], Math.round(alt)];
+      return [coord[0], coord[1], Math.round(toutesAltitudes[index])];
     });
 
     return coords3D;
@@ -248,7 +323,7 @@ class GenerateurDeParcours {
   /**
    * Calcule le profil d'élévation, D+, D-, altitudes min/max et temps estimé.
    */
-  traiterCoordonneesEtCalculerMetriques(coords3D, distanceMetres, profilInfo) {
+  traiterCoordonneesEtCalculerMetriques(coords3D, distanceMetres, profilInfo, vitessePerso = null) {
     let denivelePositif = 0;
     let deniveleNegatif = 0;
     let altMin = Infinity;
@@ -288,9 +363,22 @@ class GenerateurDeParcours {
     }
 
     const distanceTotaleKm = parseFloat((distanceMetres / 1000).toFixed(1));
-    const heuresEstimees = distanceTotaleKm / profilInfo.vitesseMoyenne;
+    
+    // 4. Calcul du temps estimé : Temps plat + Temps d'ascension (VAM)
+    const vitesseBasePlat = vitessePerso || profilInfo.vitesseMoyenne;
+    const tempsPlat = distanceTotaleKm / vitesseBasePlat;
+    const tempsAscension = denivelePositif / profilInfo.vam;
+    const heuresEstimees = tempsPlat + tempsAscension;
+    
     const heures = Math.floor(heuresEstimees);
     const minutes = Math.round((heuresEstimees - heures) * 60);
+
+    // Calcul de l'Indice de difficulté (IBP simplifié)
+    const ratioDiff = distanceTotaleKm + (denivelePositif / 10);
+    let difficulte = { nom: 'Vert (Facile)', couleur: '#10b981', ibp: Math.round(ratioDiff) };
+    if (ratioDiff >= 50) difficulte = { nom: 'Bleu (Modéré)', couleur: '#3b82f6', ibp: Math.round(ratioDiff) };
+    if (ratioDiff >= 80) difficulte = { nom: 'Rouge (Difficile)', couleur: '#f59e0b', ibp: Math.round(ratioDiff) };
+    if (ratioDiff >= 120) difficulte = { nom: 'Noir (Expert)', couleur: '#ef4444', ibp: Math.round(ratioDiff) };
 
     // Optimisation UI : sous-échantillonnage du profil pour le composant Chart.js (max 250 points)
     const MAX_POINTS_CHART = 250;
@@ -310,10 +398,11 @@ class GenerateurDeParcours {
       altitudeMin: isFinite(altMin) ? Math.round(altMin) : 0,
       altitudeMax: isFinite(altMax) ? Math.round(altMax) : 0,
       tempsEstimeFormate: `${heures}h${minutes < 10 ? '0' : ''}${minutes}`,
-      vitesseMoyenne: profilInfo.vitesseMoyenne,
+      vitesseMoyenne: vitesseBasePlat,
+      difficulte: difficulte,
+      discipline: profilInfo,
       coordonnees: coords3D, // Trace HD complète
-      profilAltimetrique: profilAltimetriqueChart, // Trace allégée pour Chart.js
-      discipline: profilInfo
+      profilAltimetrique: profilAltimetriqueChart // Trace allégée pour Chart.js
     };
   }
 

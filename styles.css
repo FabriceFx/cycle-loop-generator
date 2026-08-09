@@ -61,7 +61,8 @@ html, body {
 #app-container {
   position: relative;
   width: 100vw;
-  height: 100vh;
+  height: 100vh;       /* fallback navigateurs anciens */
+  height: 100dvh;      /* dynamic viewport : s'adapte aux barres Chrome/Safari */
   display: flex;
 }
 
@@ -78,7 +79,8 @@ html, body {
   top: 20px;
   left: 20px;
   width: 420px;
-  max-height: calc(100vh - 40px);
+  max-height: calc(100vh - 40px);   /* fallback */
+  max-height: calc(100dvh - 40px);  /* dynamic viewport */
   z-index: 10;
   background: var(--glass-bg);
   backdrop-filter: var(--glass-flou);
@@ -128,6 +130,10 @@ html, body {
 .actions-en-tete {
   display: flex;
   gap: 8px;
+}
+
+.menu-mobile-toggle {
+  display: none;
 }
 
 .btn-icone {
@@ -290,6 +296,7 @@ html, body {
   display: flex;
   gap: 10px;
   margin-top: 10px;
+  /* Desktop : comportement normal */
 }
 
 .btn-principal {
@@ -383,7 +390,20 @@ html, body {
   margin-top: 2px;
 }
 
-/* Profil Altimétrique */
+.barre-surfaces {
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.segment-surface {
+  height: 100%;
+  transition: width 0.5s ease-out;
+}
+
+.theme-sombre .barre-surfaces {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Zone Profil Altimétrique */
 .zone-profil-altimetrique {
   background: rgba(148, 163, 184, 0.05);
   border: 1px solid var(--couleur-bordure);
@@ -505,6 +525,7 @@ html, body {
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(6px);
+  z-index: 200;
 }
 
 .contenu-modal {
@@ -599,18 +620,45 @@ html, body {
     display: block;
   }
 
+  .menu-mobile-toggle {
+    display: flex;
+  }
+
+  .actions-en-tete {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-flou);
+    -webkit-backdrop-filter: var(--glass-flou);
+    border: 1px solid var(--couleur-bordure);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 100;
+    gap: 8px;
+  }
+
+  .actions-en-tete.menu-ouvert {
+    display: flex;
+  }
+
   .panneau-flottant {
     top: auto;
     bottom: 0;
     left: 0;
     width: 100vw;
-    /* Hauteur initiale : on laisse 45% de la carte visible au-dessus */
-    max-height: 62vh;
+    /* Hauteur maximale : 62% de la hauteur visible dynamique */
+    max-height: 62vh;              /* fallback */
+    max-height: min(62dvh, calc(100dvh - 160px)); /* dynamic : garantit le bouton Générer visible */
     border-radius: 24px 24px 0 0;
     border-bottom: none;
-    padding: 12px 16px 24px;
-    /* Espace s\u00e9curit\u00e9 pour les encoches iOS (home bar) */
-    padding-bottom: max(24px, env(safe-area-inset-bottom));
+    padding: 12px 16px 16px;
+    /* Espace sécurité pour barres Chrome Android + encoche iOS */
+    padding-bottom: max(env(safe-area-inset-bottom, 0px) + 16px, 80px);
   }
 
   /* Touch targets : tous les boutons principaux font au moins 48px de haut */
@@ -629,12 +677,29 @@ html, body {
     height: 28px;
   }
 
-  /* R\u00e9duction des marges entre les groupes */
+  /* Réduction des marges entre les groupes */
   .groupe-formulaire {
     margin-bottom: 14px;
   }
 
-  /* Grille stats : 2 colonnes au lieu de 3 sur petit \u00e9cran */
+  /* Bouton Générer : toujours visible en bas du panneau, peu importe le scroll */
+  .groupe-boutons-action {
+    position: sticky;
+    bottom: 0;
+    margin-top: 8px;
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 12px 16px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-flou);
+    -webkit-backdrop-filter: var(--glass-flou);
+    border-top: 1px solid var(--couleur-bordure);
+    z-index: 5;
+    /* Compense le padding-bottom du panneau pour coller au bord */
+    padding-bottom: max(env(safe-area-inset-bottom, 0px) + 12px, 16px);
+  }
+
+  /* Grille stats : 2 colonnes au lieu de 3 sur petit écran */
   .grille-stats {
     grid-template-columns: repeat(2, 1fr);
   }

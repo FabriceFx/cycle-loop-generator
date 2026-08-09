@@ -38,12 +38,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnToggleLang = document.getElementById('btn-toggle-lang');
   const overlayIndicateur = document.getElementById('indicateur-chargement');
   const messageChargement = document.getElementById('texte-chargement');
+  
+  // Menu Mobile
+  const btnMenuMobile = document.getElementById('btn-menu-mobile');
+  const menuActions = document.getElementById('menu-actions');
+
+  if (btnMenuMobile && menuActions) {
+    btnMenuMobile.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menuActions.classList.toggle('menu-ouvert');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!menuActions.contains(e.target) && !btnMenuMobile.contains(e.target)) {
+        menuActions.classList.remove('menu-ouvert');
+      }
+    });
+  }
 
   // Instances des modules
   let carteMgr = null;
   let generateurRoute = new GenerateurDeParcours();
   let graphiqueAlti = new GraphiqueAltimetrique('canvas-altitude');
   let donneesRouteCourante = null;
+  let derniersParametres = null;
 
   // -------------------------------------------------------------
   // 1. Initialisation de la carte & géolocalisation
@@ -59,29 +77,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // -------------------------------------------------------------
   // 2. Gestion de la géolocalisation navigateur
   // -------------------------------------------------------------
-  const geolocaliserUtilisateur = () => {
+  const geolocaliserUtilisateur = (silencieux = false) => {
     if ('geolocation' in navigator) {
-      afficherChargement(TRADUCTIONS[langueActuelle].rechercheEnCours);
+      if (!silencieux) afficherChargement(TRADUCTIONS[langueActuelle].rechercheEnCours);
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           carteMgr.definirPositionDepart(lat, lng, true);
-          masquerChargement();
+          if (!silencieux) masquerChargement();
         },
         (erreur) => {
           console.warn("Géolocalisation bloquée ou indisponible :", erreur);
-          alert(TRADUCTIONS[langueActuelle].erreurGeoloc);
-          masquerChargement();
+          if (!silencieux) {
+            alert(TRADUCTIONS[langueActuelle].erreurGeoloc);
+            masquerChargement();
+          }
         },
         { enableHighAccuracy: true, timeout: 8000 }
       );
     } else {
-      alert(TRADUCTIONS[langueActuelle].erreurGeoloc);
+      if (!silencieux) alert(TRADUCTIONS[langueActuelle].erreurGeoloc);
     }
   };
 
-  btnGeoloc.addEventListener('click', geolocaliserUtilisateur);
+  btnGeoloc.addEventListener('click', () => geolocaliserUtilisateur(false));
 
   // -------------------------------------------------------------
   // 3. Recherche d'adresse via Nominatim
@@ -137,9 +157,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const eviterNat = checkEviterNationales ? checkEviterNationales.checked : false;
     const directionPref = selectDirection ? selectDirection.value : 'aleatoire';
 
+    const paramString = `${latLng[0]}_${latLng[1]}_${dist}_${disc}_${prefRoute}_${eviterNat}_${directionPref}`;
+    if (!nouvelleVariante && derniersParametres === paramString) {
+      nouvelleVariante = true;
+    }
+    derniersParametres = paramString;
+
     afficherChargement(TRADUCTIONS[langueActuelle].generationEnCours);
 
     try {
+      const ventIntelligent = document.getElementById('check-vent-intelligent') ? document.getElementById('check-vent-intelligent').checked : false;
+      const inputVitesse = document.getElementById('input-vitesse-perso');
+      const vitessePerso = inputVitesse && inputVitesse.value ? parseFloat(inputVitesse.value) : null;
+
       donneesRouteCourante = await generateurRoute.genererBoucle(
         latLng[0],
         latLng[1],
@@ -148,7 +178,9 @@ document.addEventListener('DOMContentLoaded', () => {
         nouvelleVariante,
         prefRoute,
         eviterNat,
-        directionPref
+        directionPref,
+        ventIntelligent,
+        vitessePerso
       );
 
       // Mise à jour de l'affichage
@@ -185,6 +217,35 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('stat-vitesse').textContent = `${donnees.vitesseMoyenne} km/h`;
     document.getElementById('stat-alt-min').textContent = `${donnees.altitudeMin} m`;
     document.getElementById('stat-alt-max').textContent = `${donnees.altitudeMax} m`;
+    
+    // Difficulté
+    const statDiff = document.getElementById('stat-difficulte');
+    if (statDiff && donnees.difficulte) {
+      statDiff.textContent = donnees.difficulte.nom;
+      statDiff.style.color = donnees.difficulte.couleur;
+      statDiff.style.fontWeight = 'bold';
+    }
+
+    // Surfaces
+    const conteneurSurfaces = document.getElementById('conteneur-surfaces');
+    if (conteneurSurfaces) {
+      if (donnees.surfaces) {
+        conteneurSurfaces.style.display = 'block';
+        document.getElementById('barre-asphalte').style.width = `${donnees.surfaces.asphalte}%`;
+        document.getElementById('barre-gravier').style.width = `${donnees.surfaces.gravier}%`;
+        document.getElementById('barre-terre').style.width = `${donnees.surfaces.terre}%`;
+        
+        document.getElementById('txt-asphalte').textContent = `Asphalte ${donnees.surfaces.asphalte}%`;
+        document.getElementById('txt-gravier').textContent = `Gravier ${donnees.surfaces.gravier}%`;
+        document.getElementById('txt-terre').textContent = `Terre ${donnees.surfaces.terre}%`;
+      } else {
+        conteneurSurfaces.style.display = 'none';
+      }
+    }
+
+    const panneauExplications = document.getElementById('panneau-explications');
+    if (panneauExplications) panneauExplications.style.display = 'none';
+
     document.getElementById('panneau-resultats').classList.remove('masque');
   };
 
@@ -202,12 +263,50 @@ document.addEventListener('DOMContentLoaded', () => {
   
   btnPartager.addEventListener('click', () => {
     const pos = carteMgr.positionDepart;
+    if (!pos || pos.length < 2) {
+      alert(TRADUCTIONS[langueActuelle].erreurCalcul);
+      return;
+    }
     const dist = inputDistance.value;
     const disc = selectDiscipline.value;
     const dir = selectDirection ? selectDirection.value : 'aleatoire';
     const lien = ExportateurDeParcours.genererLienPartage(pos[0], pos[1], dist, disc, dir);
-    navigator.clipboard.writeText(lien);
-    alert(TRADUCTIONS[langueActuelle].lienCopie);
+
+    // Afficher la modale avec le lien
+    const textareaLien = document.getElementById('textarea-lien-partage');
+    const msgOk = document.getElementById('msg-copie-ok');
+    textareaLien.value = lien;
+    msgOk.style.display = 'none';
+    ouvrirModale('modal-partager');
+    // Sélectionner automatiquement le texte pour faciliter la copie manuelle
+    setTimeout(() => textareaLien.select(), 100);
+  });
+
+  document.getElementById('btn-copier-lien').addEventListener('click', async () => {
+    const textareaLien = document.getElementById('textarea-lien-partage');
+    const msgOk = document.getElementById('msg-copie-ok');
+    const lien = textareaLien.value;
+
+    let copiOk = false;
+    // Tentative 1 : API Clipboard moderne
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(lien);
+        copiOk = true;
+      } catch (e) {
+        // On passe au fallback
+      }
+    }
+    // Tentative 2 : execCommand (fallback HTTP / anciens navigateurs)
+    if (!copiOk) {
+      textareaLien.select();
+      copiOk = document.execCommand('copy');
+    }
+
+    if (copiOk) {
+      msgOk.style.display = 'block';
+      msgOk.textContent = TRADUCTIONS[langueActuelle].lienCopie;
+    }
   });
 
   btnIframe.addEventListener('click', () => {
@@ -257,6 +356,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     });
+
+    document.querySelectorAll('[data-i18n-title]').forEach(elem => {
+      const cle = elem.getAttribute('data-i18n-title');
+      if (t[cle]) {
+        elem.title = t[cle];
+      }
+    });
   };
 
   appliquerLangue(langueActuelle);
@@ -304,8 +410,8 @@ document.addEventListener('DOMContentLoaded', () => {
     overlayIndicateur.classList.remove('active');
   }
 
-  // Tenter de géolocaliser automatiquement au premier lancement
+  // Tenter de géolocaliser automatiquement au premier lancement (silencieusement)
   setTimeout(() => {
-    geolocaliserUtilisateur();
+    geolocaliserUtilisateur(true);
   }, 600);
 });

@@ -7,7 +7,7 @@
 const TRADUCTIONS = {
   fr: {
     titreApp: "Générateur de parcours sportif",
-    sousTitreApp: "Créez vos boucles VTT, route & gravel sur-mesure",
+    sousTitreApp: "Créez vos boucles vélo, course à pied et rando sur-mesure",
     discipline: "Discipline",
     directionParcours: "Direction souhaitée",
     dirAleatoire: "🎲 Aléatoire (toutes directions)",
@@ -25,6 +25,16 @@ const TRADUCTIONS = {
     autreVariante: "Autre variante",
     rechercheEnCours: "Recherche en cours...",
     generationEnCours: "Génération de la boucle en cours...",
+
+    // Tutoriel / Comment ça marche
+    tutoTitre: "Comment ça marche ?",
+    tutoEtape1Titre: "📍 1. Départ :",
+    tutoEtape1Desc: "Saisissez une ville ou utilisez la cible pour vous géolocaliser.",
+    tutoEtape2Titre: "🎛️ 2. Réglages :",
+    tutoEtape2Desc: "Ajustez le curseur kilométrique et choisissez votre monture (Route, Gravel, VTT).",
+    tutoEtape3Titre: "⚡ 3. Génération :",
+    tutoEtape3Desc1: "Cliquez sur Générer ! L'algorithme tracera une boucle sportive sur-mesure. Pas satisfait ? Cliquez sur",
+    tutoEtape3Desc2: "Autre variante",
     
     // Statistiques
     boucleFermee: "🔄 Boucle fermée (départ = arrivée)",
@@ -48,7 +58,10 @@ const TRADUCTIONS = {
     ouvrirGoogleMaps: "Ouvrir Google Maps",
     partagerParcours: "Partager ce parcours",
     integrerIframe: "Intégrer sur mon site",
-    lienCopie: "Lien copié dans le presse-papier !",
+    lienCopie: "✅ Lien copié dans le presse-papier !",
+    partagerTitre: "🔗 Partager ce parcours",
+    partagerExplication: "Copiez ce lien pour partager la configuration exacte de ce parcours :",
+    copierLien: "📋 Copier le lien",
 
     // Modales & Navigation
     aPropos: "À propos",
@@ -60,7 +73,7 @@ const TRADUCTIONS = {
 
     // Textes À Propos
     texteAProposTitre: "À propos du générateur de parcours",
-    texteAPropos1: "Cet outil web a été conçu pour permettre aux cyclistes (VTT, Gravel, Route) de générer instantanément une boucle d'entraînement personnalisée à partir de leur position exacte.",
+    texteAPropos1: "Cet outil web a été conçu pour permettre aux sportifs (Vélo, Running, Rando) de générer instantanément une boucle d'entraînement personnalisée à partir de leur position exacte.",
     texteAPropos2: "Développé par Fabrice Faucheux pour intégration sur faucheux.bzh.",
     texteDeveloppeur: "Développeur : Fabrice Faucheux",
     siteWeb: "Site web : https://faucheux.bzh",
@@ -71,6 +84,9 @@ const TRADUCTIONS = {
     copierCode: "Copier le code",
     codeCopie: "Code copié !",
 
+    // Navigation
+    retourSite: "Retour au site",
+
     // Erreurs
     erreurGeoloc: "Impossible d'accéder à votre géolocalisation. Veuillez vérifier les permissions de votre navigateur.",
     erreurGpsInconnu: "Lieu introuvable. Veuillez essayer une autre recherche.",
@@ -78,8 +94,8 @@ const TRADUCTIONS = {
   },
 
   en: {
-    titreApp: "Cycling Route Generator",
-    sousTitreApp: "Create custom MTB, Road & Gravel loops",
+    titreApp: "Sports Route Generator",
+    sousTitreApp: "Create your custom cycling, running, and hiking loops",
     discipline: "Discipline",
     directionParcours: "Route Direction",
     dirAleatoire: "🎲 Random (All directions)",
@@ -97,6 +113,16 @@ const TRADUCTIONS = {
     autreVariante: "Another Variation",
     rechercheEnCours: "Searching...",
     generationEnCours: "Generating circular route...",
+
+    // Tutorial / How it works
+    tutoTitre: "How it works?",
+    tutoEtape1Titre: "📍 1. Start:",
+    tutoEtape1Desc: "Enter a city or use the crosshair to geolocate yourself.",
+    tutoEtape2Titre: "🎛️ 2. Settings:",
+    tutoEtape2Desc: "Adjust the distance slider and choose your ride (Road, Gravel, MTB).",
+    tutoEtape3Titre: "⚡ 3. Generation:",
+    tutoEtape3Desc1: "Click Generate! The algorithm will map out a custom sports loop. Not satisfied? Click on",
+    tutoEtape3Desc2: "Another Variation",
 
     // Statistics
     boucleFermee: "🔄 Closed Loop (Start = Finish)",
@@ -120,7 +146,10 @@ const TRADUCTIONS = {
     ouvrirGoogleMaps: "Open Google Maps",
     partagerParcours: "Share Route",
     integrerIframe: "Embed on Website",
-    lienCopie: "Link copied to clipboard!",
+    lienCopie: "✅ Link copied to clipboard!",
+    partagerTitre: "🔗 Share Route",
+    partagerExplication: "Copy this link to share this exact route configuration:",
+    copierLien: "📋 Copy Link",
 
     // Modals & Nav
     aPropos: "About",
@@ -132,7 +161,7 @@ const TRADUCTIONS = {
 
     // About Texts
     texteAProposTitre: "About Route Generator",
-    texteAPropos1: "This web tool allows cyclists (MTB, Gravel, Road) to instantly generate personalized loop workouts from their exact location.",
+    texteAPropos1: "This web tool allows athletes (Cycling, Running, Hiking) to instantly generate personalized loop workouts from their exact location.",
     texteAPropos2: "Developed by Fabrice Faucheux for integration on faucheux.bzh.",
     texteDeveloppeur: "Developer: Fabrice Faucheux",
     siteWeb: "Website: https://faucheux.bzh",
@@ -142,6 +171,9 @@ const TRADUCTIONS = {
     codeIframeExplication: "Copy this HTML code to embed the generator into your website or WordPress post:",
     copierCode: "Copy Code",
     codeCopie: "Code copied!",
+
+    // Navigation
+    retourSite: "Back to site",
 
     // Errors
     erreurGeoloc: "Unable to access your location. Please check browser permissions.",

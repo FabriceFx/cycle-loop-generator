@@ -17,7 +17,9 @@ const CONFIG = {
     vtt: {
       nom: 'VTT / VTC',
       codeOrs: 'cycling-mountain',
+      codeOsrm: 'cycling',
       vitesseMoyenne: 16, // km/h
+      vam: 400, // Vitesse Ascensionnelle (mètres par heure)
       icone: '🚵',
       couleur: '#10b981', // Vert émeraude
       description: 'Chemins non revêtus, sentiers, forêts et dénivelé'
@@ -25,7 +27,9 @@ const CONFIG = {
     gravel: {
       nom: 'Gravel',
       codeOrs: 'cycling-regular',
+      codeOsrm: 'cycling',
       vitesseMoyenne: 21, // km/h
+      vam: 600, // m/h
       icone: '🚵‍♂️',
       couleur: '#f59e0b', // Amber / Orange
       description: 'Pistes, voies vertes, petites routes et chemins carrossables'
@@ -33,10 +37,32 @@ const CONFIG = {
     route: {
       nom: 'Route',
       codeOrs: 'cycling-road',
+      codeOsrm: 'cycling',
       vitesseMoyenne: 26, // km/h
+      vam: 800, // m/h
       icone: '🚴',
       couleur: '#3b82f6', // Bleu
       description: 'Routes goudronnées, pistes cyclables et enrobé lisse'
+    },
+    running: {
+      nom: 'Running / Trail',
+      codeOrs: 'foot-walking',
+      codeOsrm: 'foot',
+      vitesseMoyenne: 11, // km/h
+      vam: 600, // m/h (trail)
+      icone: '🏃',
+      couleur: '#ef4444', // Rouge
+      description: 'Course à pied, footing et trail'
+    },
+    marche: {
+      nom: 'Marche / Rando',
+      codeOrs: 'foot-hiking',
+      codeOsrm: 'foot',
+      vitesseMoyenne: 5, // km/h
+      vam: 350, // m/h
+      icone: '🥾',
+      couleur: '#8b5cf6', // Violet
+      description: 'Randonnée pédestre, marche nordique et balade'
     }
   },
 
