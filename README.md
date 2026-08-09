@@ -3,6 +3,8 @@
 **Version 1.1.0**  
 Développé par **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux.bzh)
 
+🚀 **Outil testable en direct ici / Live demo available here :** [https://faucheux.bzh/parcours/](https://faucheux.bzh/parcours/)
+
 ---
 
 ## 🇫🇷 Français
