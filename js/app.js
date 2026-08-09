@@ -63,6 +63,15 @@ document.addEventListener('DOMContentLoaded', () => {
   let donneesRouteCourante = null;
   let derniersParametres = null;
 
+  // Gestion du Panneau Flottant sur Mobile
+  const panneauControle = document.getElementById('panneau-controle');
+  const dragHandle = document.querySelector('.drag-handle');
+  if (dragHandle && panneauControle) {
+    dragHandle.addEventListener('click', () => {
+      panneauControle.classList.toggle('replie');
+    });
+  }
+
   // -------------------------------------------------------------
   // 1. Initialisation de la carte & géolocalisation
   // -------------------------------------------------------------
@@ -260,6 +269,11 @@ document.addEventListener('DOMContentLoaded', () => {
             carteMgr.chargerPOIs(donneesRouteCourante.coordonnees);
           } else {
             carteMgr.masquerPOIs();
+          }
+
+          // Auto-replier le panneau sur mobile pour voir la carte
+          if (window.innerWidth <= 768 && panneauControle) {
+            panneauControle.classList.add('replie');
           }
         };
 
