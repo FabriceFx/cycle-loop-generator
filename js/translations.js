@@ -72,6 +72,7 @@ const TRADUCTIONS = {
     reglagesApi: "Clé API OpenRouteService",
     sauvegarder: "Sauvegarder",
     clePerso: "Votre clé API personnelle (optionnel) :",
+    commentObtenirCle: "Pour obtenir une clé gratuite : créez un compte sur <a href='https://account.heigit.org/manage/key' target='_blank' style='color: var(--couleur-primaire); text-decoration: none;'>account.heigit.org</a>, générez un <strong>Token</strong> (type Free), et collez-le ici.",
     modeHybrideActif: "Mode hybride actif : calcul d'itinéraire optimisé avec fallback intelligent.",
 
     // Textes À Propos
@@ -163,6 +164,7 @@ const TRADUCTIONS = {
     reglagesApi: "OpenRouteService API Key",
     sauvegarder: "Save",
     clePerso: "Personal API Key (Optional):",
+    commentObtenirCle: "To get a free key: create an account on <a href='https://account.heigit.org/manage/key' target='_blank' style='color: var(--couleur-primaire); text-decoration: none;'>account.heigit.org</a>, generate a <strong>Token</strong> (Free type), and paste it here.",
     modeHybrideActif: "Hybrid mode active: optimized routing with automatic fallback.",
 
     // About Texts
