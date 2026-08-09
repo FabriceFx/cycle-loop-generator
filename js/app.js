@@ -487,6 +487,30 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // -------------------------------------------------------------
+  // 10b. Gestion du Thème (Clair / Sombre)
+  // -------------------------------------------------------------
+  const appliquerTheme = (theme) => {
+    if (theme === 'clair') {
+      document.body.classList.remove('theme-sombre');
+      document.body.classList.add('theme-clair');
+      btnToggleTheme.textContent = '🌙'; // Affiche la lune pour repasser en sombre
+    } else {
+      document.body.classList.remove('theme-clair');
+      document.body.classList.add('theme-sombre');
+      btnToggleTheme.textContent = '☀️'; // Affiche le soleil pour repasser en clair
+    }
+    localStorage.setItem('theme_pref', theme);
+  };
+
+  const themeSauvegarde = localStorage.getItem('theme_pref') || 'sombre';
+  appliquerTheme(themeSauvegarde);
+
+  btnToggleTheme.addEventListener('click', () => {
+    const nouveauTheme = document.body.classList.contains('theme-sombre') ? 'clair' : 'sombre';
+    appliquerTheme(nouveauTheme);
+  });
+
+  // -------------------------------------------------------------
   // 11. Gestion des Modales (À propos, Iframe, Config API)
   // -------------------------------------------------------------
   btnAPropos.addEventListener('click', () => ouvrirModale('modal-a-propos'));
