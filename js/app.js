@@ -427,29 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // -------------------------------------------------------------
   // 9. Thème clair / sombre
-  // -------------------------------------------------------------
-  const appliquerTheme = (theme) => {
-    if (theme === 'dark') {
-      document.body.classList.add('theme-sombre');
-      btnToggleTheme.textContent = '☀️';
-    } else {
-      document.body.classList.remove('theme-sombre');
-      btnToggleTheme.textContent = '🌙';
-    }
-    localStorage.setItem('theme_app', theme);
-  };
-
-  const themeStocke = localStorage.getItem('theme_app');
-  let themeInit = themeStocke;
-  if (!themeInit) {
-    themeInit = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  }
-  appliquerTheme(themeInit);
-
-  btnToggleTheme.addEventListener('click', () => {
-    const nouveauTheme = document.body.classList.contains('theme-sombre') ? 'light' : 'dark';
-    appliquerTheme(nouveauTheme);
-  });
+  // Ancienne logique de thème supprimée (remplacée plus bas)
 
   // -------------------------------------------------------------
   // 10. Traduction bilingue dynamique (FR / EN)
