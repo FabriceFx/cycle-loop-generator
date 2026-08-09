@@ -98,30 +98,19 @@ class GenerateurDeParcours {
       }
     }
 
-    // 1. Géométrie
+    // 1. Waypoints géométriques (utilisés uniquement pour le fallback OSRM)
     const waypoints = this.genererWaypointsGeometriques(lat, lng, distanceKm, this.graineCourante, prefRoute, eviterNationales, directionPref);
-    this.debugLog('info', `📍 Waypoints générés`, { nombre: waypoints.length, premier: waypoints[0], dernier: waypoints[waypoints.length - 1] });
 
-    // 2. Routage via OpenRouteService (si clé API)
+    // 2. Routage via OpenRouteService (si clé API) — mode round_trip natif
     if (CONFIG.orsApiKey) {
-      this.debugLog('info', '🔑 Clé ORS détectée, appel API en cours...');
+      this.debugLog('info', '🔑 Clé ORS détectée, calcul de la boucle round_trip en cours...');
       try {
-        const donneesOrs = await this.calculerViaOrsDirections(waypoints, profilInfo.codeOrs, prefRoute, eviterNationales, eviterDenivele);
+        const donneesOrs = await this.calculerViaOrsRoundTrip(lat, lng, distanceKm, profilInfo.codeOrs, this.graineCourante, directionPref, eviterDenivele);
         if (donneesOrs) {
           const feature = donneesOrs.features[0];
           let coords = feature.geometry.coordinates;
           const distMetres = feature.properties.summary.distance;
-          this.debugLog('info', '✅ ORS Directions répondu', { pointsReturned: coords.length, distanceM: Math.round(distMetres), elevationInCoords: coords[0].length });
-
-          const avantPurge = coords.length;
-          // ORS suit déjà les chemins existants : la purge d'antennes n'est utile que pour
-          // les profils cyclistes (OSRM peut générer des allers-retours sur axe principal).
-          // Pour les profils piétons, elle crée des lignes droites à travers champs.
-          const estPieton = profilInfo.codeOrs.includes('foot');
-          if (!estPieton) {
-            coords = this.purgerToutesLesAntennes(coords, false);
-          }
-          this.debugLog('info', `🧹 Purge antennes ORS`, { avant: avantPurge, après: coords.length, appliquée: !estPieton });
+          this.debugLog('info', '✅ ORS round_trip répondu', { pointsReturned: coords.length, distanceM: Math.round(distMetres), elevationInCoords: coords[0].length });
 
           if (coords.length > 0) {
             coords[0][0] = lng;
@@ -138,7 +127,6 @@ class GenerateurDeParcours {
 
           let metriques = this.traiterCoordonneesEtCalculerMetriques(coordsAvecAltitude, distMetres, profilInfo, vitessePerso);
 
-          // Extraction des surfaces si disponibles (ORS uniquement)
           if (donneesOrs.features[0].properties?.extras?.surface) {
             const surfaceSummary = donneesOrs.features[0].properties.extras.surface.summary;
             let asphalte = 0, gravier = 0, terre = 0, totalAmount = 0;
@@ -163,7 +151,7 @@ class GenerateurDeParcours {
           return metriques;
         }
       } catch (erreur) {
-        this.debugLog('erreur', '❌ ORS Directions échoué, basculement OSRM', erreur.message);
+        this.debugLog('erreur', '❌ ORS round_trip échoué, basculement OSRM', erreur.message);
       }
     } else {
       this.debugLog('avertissement', '⚠️ Pas de clé ORS, utilisation OSRM (sans altitude native)');
@@ -219,17 +207,69 @@ class GenerateurDeParcours {
   }
 
   /**
-   * Routage via l'API standard OpenRouteService Directions.
+   * Génère une vraie boucle via l'option round_trip native d'ORS.
+   * ORS calcule lui-même les waypoints intermédiaires sur le réseau réel.
+   * C'est beaucoup plus fiable que des waypoints géométriques arbitraires.
+   */
+  async calculerViaOrsRoundTrip(lat, lng, distanceKm, codeOrs, graine, directionPref, eviterDenivele = false) {
+    const url = `${CONFIG.orsApiUrl}/${codeOrs}/geojson`;
+
+    // La graine (seed) détermine la direction aléatoire de la boucle.
+    // On la combine avec la direction préférentielle pour orienter la boucle.
+    let seedEffectif = graine;
+    if (directionPref !== 'aleatoire') {
+      const decalageSeed = { nord: 0, est: 25, sud: 50, ouest: 75 };
+      seedEffectif = (graine + (decalageSeed[directionPref] || 0)) % 100;
+    }
+
+    const optionsRoundTrip = {
+      round_trip: {
+        length: distanceKm * 1000, // en mètres
+        points: 5,
+        seed: seedEffectif
+      }
+    };
+
+    // Évitement de la pente pour les profils cyclistes
+    if (eviterDenivele && codeOrs.includes('cycling')) {
+      optionsRoundTrip.profile_params = {
+        weightings: { steepness_difficulty: 3 }
+      };
+    }
+
+    const corps = {
+      coordinates: [[lng, lat]],
+      options: optionsRoundTrip,
+      extra_info: ['surface'],
+      elevation: true
+    };
+
+    this.debugLog('info', '📤 Requête ORS round_trip', { distanceM: distanceKm * 1000, seed: seedEffectif, profil: codeOrs });
+
+    const reponse = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': CONFIG.orsApiKey
+      },
+      body: JSON.stringify(corps)
+    });
+
+    if (!reponse.ok) {
+      const erreurTexte = await reponse.text();
+      this.debugLog('erreur', `ORS round_trip HTTP ${reponse.status}`, erreurTexte.substring(0, 200));
+      throw new Error(`Erreur HTTP ORS round_trip : ${reponse.status}`);
+    }
+    return await reponse.json();
+  }
+
+  /**
+   * Routage via l'API standard OpenRouteService Directions (conservé pour usage futur / étapes forcées).
    */
   async calculerViaOrsDirections(waypoints, codeOrs, prefRoute, eviterNationales, eviterDenivele = false) {
     const url = `${CONFIG.orsApiUrl}/${codeOrs}/geojson`;
-
-    // ORS peut gérer une boucle fermée (premier == dernier waypoint) dès lors que
-    // des waypoints intermédiaires existent. La cause initiale du HTTP 400 était
-    // uniquement l'option avoid_features invalide pour foot-*, désormais corrigée.
     const waypointsOrs = waypoints;
-
-    this.debugLog('info', '📤 Waypoints envoyés à ORS', { nombre: waypointsOrs.length });
+    this.debugLog('info', '📤 Waypoints envoyés à ORS Directions', { nombre: waypointsOrs.length });
 
     const optionsOrs = {};
     const estProfliCycliste = codeOrs.includes('cycling');
