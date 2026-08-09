@@ -230,17 +230,25 @@ document.addEventListener('DOMContentLoaded', () => {
         eviterDenivele
       );
 
-      // Mise à jour de l'affichage
+      // Mise à jour de l'affichage avec View Transitions API
       if (donneesRouteCourante) {
-        afficherStatistiques(donneesRouteCourante);
-        carteMgr.afficherTraceParcours(donneesRouteCourante.coordonnees);
-        graphiqueAlti.afficherProfil(donneesRouteCourante.profilAltimetrique, donneesRouteCourante.discipline.couleur);
-        
-        const checkPois = document.getElementById('check-afficher-pois');
-        if (checkPois && checkPois.checked) {
-          carteMgr.chargerPOIs(donneesRouteCourante.coordonnees);
+        const updateUI = () => {
+          afficherStatistiques(donneesRouteCourante);
+          carteMgr.afficherTraceParcours(donneesRouteCourante.coordonnees);
+          graphiqueAlti.afficherProfil(donneesRouteCourante.profilAltimetrique, donneesRouteCourante.discipline.couleur);
+          
+          const checkPois = document.getElementById('check-afficher-pois');
+          if (checkPois && checkPois.checked) {
+            carteMgr.chargerPOIs(donneesRouteCourante.coordonnees);
+          } else {
+            carteMgr.masquerPOIs();
+          }
+        };
+
+        if (document.startViewTransition) {
+          document.startViewTransition(() => updateUI());
         } else {
-          carteMgr.masquerPOIs();
+          updateUI();
         }
       }
     } catch (e) {
