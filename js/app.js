@@ -147,6 +147,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // -------------------------------------------------------------
+  // 4b. Ajustements automatiques selon la discipline
+  // -------------------------------------------------------------
+  selectDiscipline.addEventListener('change', (e) => {
+    const discipline = e.target.value;
+    if (discipline === 'marche' || discipline === 'running') {
+      selectTypeRoutes.value = 'tranquille';
+    }
+  });
+
+  // -------------------------------------------------------------
   // 5. Génération du parcours
   // -------------------------------------------------------------
   const lancerCalculParcours = async (nouvelleVariante = false) => {
