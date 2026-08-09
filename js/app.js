@@ -121,7 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnRechercher.addEventListener('click', effectuerRechercheLieu);
   inputRecherche.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') effectuerRechercheLieu();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      effectuerRechercheLieu();
+    }
   });
 
   // -------------------------------------------------------------
