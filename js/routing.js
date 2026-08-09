@@ -418,10 +418,12 @@ class GenerateurDeParcours {
     let altMin = Infinity;
     let altMax = -Infinity;
 
-    // 1. Extraction et Lissage (Moyenne glissante sur 5 points)
+    // 1. Extraction et Lissage (Moyenne glissante sur 7 points)
+    // ORS fournit des points denses (~5-10m d'intervalle), le bruit de quantification SRTM est ±1-2m.
+    // Une fenêtre de 7 points filtre les oscillations sans écraser les vraies côtes.
     const altitudesBrutes = coords3D.map(p => p.length > 2 ? p[2] : 0);
     const altitudesLissees = [];
-    const fenetre = 2; // de i-2 à i+2
+    const fenetre = 3; // i-3 à i+3 = 7 points
     
     for (let i = 0; i < altitudesBrutes.length; i++) {
       let somme = 0;
@@ -440,12 +442,14 @@ class GenerateurDeParcours {
     if (altMin === Infinity) altMin = 0;
     if (altMax === -Infinity) altMax = 0;
 
-    // 2. Calcul du D+/D- avec Hystérésis (Seuil de 3m pour filtrer le bruit)
+    // 2. Calcul du D+/D- avec Hystérésis (Seuil de 5m — standard GPS Garmin/Suunto)
+    // L'algorithme ne comptabilise une montée ou descente que si elle dépasse 5m continus.
+    // Cela élimine le bruit de quantification SRTM (±1-2m réels, amplifiés après lissage).
     if (altitudesLissees.length > 0) {
       let altRef = altitudesLissees[0];
       for (let i = 1; i < altitudesLissees.length; i++) {
         const diff = altitudesLissees[i] - altRef;
-        if (Math.abs(diff) >= 3) {
+        if (Math.abs(diff) >= 5) {
           if (diff > 0) denivelePositif += diff;
           else deniveleNegatif += Math.abs(diff);
           altRef = altitudesLissees[i];
@@ -457,6 +461,8 @@ class GenerateurDeParcours {
     deniveleNegatif = Math.round(deniveleNegatif);
     altMin = Math.round(altMin);
     altMax = Math.round(altMax);
+
+    this.debugLog('info', '📊 Métriques altitude', { altMin, altMax, d_plus: denivelePositif, d_moins: deniveleNegatif, nbPoints: coords3D.length });
 
     // 3. Construction du profil altimétrique avec distances cumulées
     const profilAltimetrique = [];
