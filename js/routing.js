@@ -334,34 +334,63 @@ class GenerateurDeParcours {
     let altMin = Infinity;
     let altMax = -Infinity;
 
+    // 1. Extraction et Lissage (Moyenne glissante sur 5 points)
+    const altitudesBrutes = coords3D.map(p => p.length > 2 ? p[2] : 0);
+    const altitudesLissees = [];
+    const fenetre = 2; // de i-2 à i+2
+    
+    for (let i = 0; i < altitudesBrutes.length; i++) {
+      let somme = 0;
+      let count = 0;
+      for (let j = Math.max(0, i - fenetre); j <= Math.min(altitudesBrutes.length - 1, i + fenetre); j++) {
+        somme += altitudesBrutes[j];
+        count++;
+      }
+      const altLissee = somme / count;
+      altitudesLissees.push(altLissee);
+      
+      if (altLissee < altMin) altMin = altLissee;
+      if (altLissee > altMax) altMax = altLissee;
+    }
+
+    if (altMin === Infinity) altMin = 0;
+    if (altMax === -Infinity) altMax = 0;
+
+    // 2. Calcul du D+/D- avec Hystérésis (Seuil de 3m pour filtrer le bruit)
+    if (altitudesLissees.length > 0) {
+      let altRef = altitudesLissees[0];
+      for (let i = 1; i < altitudesLissees.length; i++) {
+        const diff = altitudesLissees[i] - altRef;
+        if (Math.abs(diff) >= 3) {
+          if (diff > 0) denivelePositif += diff;
+          else deniveleNegatif += Math.abs(diff);
+          altRef = altitudesLissees[i];
+        }
+      }
+    }
+
+    denivelePositif = Math.round(denivelePositif);
+    deniveleNegatif = Math.round(deniveleNegatif);
+    altMin = Math.round(altMin);
+    altMax = Math.round(altMax);
+
+    // 3. Construction du profil altimétrique avec distances cumulées
     const profilAltimetrique = [];
     let distanceCumuleeKm = 0;
 
     for (let i = 0; i < coords3D.length; i++) {
-      const p1 = coords3D[i];
-      const lng = p1[0];
-      const lat = p1[1];
-      const alt = p1.length > 2 ? p1[2] : 0;
-
-      if (alt < altMin) altMin = alt;
-      if (alt > altMax) altMax = alt;
+      const lng = coords3D[i][0];
+      const lat = coords3D[i][1];
+      const alt = Math.round(altitudesLissees[i]);
 
       if (i > 0) {
         const p0 = coords3D[i - 1];
-        const distSegment = this.calculerDistanceHaversine(p0[1], p0[0], lat, lng);
-        distanceCumuleeKm += distSegment;
-
-        const altDiff = alt - (p0.length > 2 ? p0[2] : 0);
-        if (altDiff > 0) {
-          denivelePositif += altDiff;
-        } else {
-          deniveleNegatif += Math.abs(altDiff);
-        }
+        distanceCumuleeKm += this.calculerDistanceHaversine(p0[1], p0[0], lat, lng);
       }
 
       profilAltimetrique.push({
         distanceKm: parseFloat(distanceCumuleeKm.toFixed(2)),
-        altitude: Math.round(alt),
+        altitude: alt,
         lat: lat,
         lng: lng
       });
