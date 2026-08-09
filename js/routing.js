@@ -229,10 +229,14 @@ class GenerateurDeParcours {
     this.debugLog('info', '📤 Waypoints envoyés à ORS', { nombre: waypointsOrs.length });
 
     const optionsOrs = {};
-    if (eviterNationales || prefRoute === 'tranquille') {
+    const estProfliCycliste = codeOrs.includes('cycling');
+    const estProfilPieton = codeOrs.includes('foot');
+
+    // avoid_features 'highways'/'tollways' n'est valide que pour les profils cyclistes (pas foot-*)
+    if ((eviterNationales || prefRoute === 'tranquille') && estProfliCycliste) {
       optionsOrs.avoid_features = ['highways', 'tollways'];
     }
-    if (eviterDenivele && codeOrs.includes('cycling')) {
+    if (eviterDenivele && estProfliCycliste) {
       optionsOrs.profile_params = {
         weightings: { steepness_difficulty: 3 }
       };
