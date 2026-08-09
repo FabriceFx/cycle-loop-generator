@@ -114,8 +114,14 @@ class GenerateurDeParcours {
           this.debugLog('info', '✅ ORS Directions répondu', { pointsReturned: coords.length, distanceM: Math.round(distMetres), elevationInCoords: coords[0].length });
 
           const avantPurge = coords.length;
-          coords = this.purgerToutesLesAntennes(coords);
-          this.debugLog('info', `🧹 Purge antennes`, { avant: avantPurge, après: coords.length });
+          // ORS suit déjà les chemins existants : la purge d'antennes n'est utile que pour
+          // les profils cyclistes (OSRM peut générer des allers-retours sur axe principal).
+          // Pour les profils piétons, elle crée des lignes droites à travers champs.
+          const estPieton = profilInfo.codeOrs.includes('foot');
+          if (!estPieton) {
+            coords = this.purgerToutesLesAntennes(coords, false);
+          }
+          this.debugLog('info', `🧹 Purge antennes ORS`, { avant: avantPurge, après: coords.length, appliquée: !estPieton });
 
           if (coords.length > 0) {
             coords[0][0] = lng;
@@ -304,8 +310,12 @@ class GenerateurDeParcours {
     }
 
     const avantPurge = coordsGeojson.length;
-    coordsGeojson = this.purgerToutesLesAntennes(coordsGeojson);
-    this.debugLog('info', `🧹 Purge antennes OSRM`, { avant: avantPurge, après: coordsGeojson.length });
+    // Seuil réduit pour les profils piétons : 15m au lieu de 40m.
+    // Les sentiers de randonnée font des zigzags serrés — un seuil trop élevé crée
+    // des lignes droites qui traversent des propriétés privées.
+    const estPieton = profilInfo.codeOrs.includes('foot');
+    coordsGeojson = this.purgerToutesLesAntennes(coordsGeojson, estPieton);
+    this.debugLog('info', `🧹 Purge antennes OSRM`, { avant: avantPurge, après: coordsGeojson.length, seuilM: estPieton ? 15 : 40 });
 
     if (coordsGeojson.length > 0) {
       coordsGeojson[0] = [lngDepart, latDepart];
@@ -537,13 +547,15 @@ class GenerateurDeParcours {
 
   /**
    * Filtre de purge des antennes et impasses (cul-de-sac).
-   * IMPORTANT : ne jamais réduire le premier et le dernier point si c'est une boucle fermée
-   * (premier == dernier). La boucle entière serait élaguée sinon.
+   * @param {boolean} profilPieton - Si true, seuil réduit à 15m pour ne pas couper les sentiers en zigzag.
    */
-  purgerToutesLesAntennes(coords) {
+  purgerToutesLesAntennes(coords, profilPieton = false) {
     if (!coords || coords.length < 10) return coords;
 
-    // Détection de boucle fermée : si le 1er et le dernier point sont proches (< 50m), c'est une boucle
+    // Seuil de proximité : 40m pour les profils cyclistes, 15m pour les piétons
+    const SEUIL_METRES = profilPieton ? 15 : 40;
+
+    // Détection de boucle fermée
     const ptDebut = coords[0];
     const ptFin = coords[coords.length - 1];
     const distBoucle = this.calculerDistanceHaversine(ptDebut[1], ptDebut[0], ptFin[1], ptFin[0]) * 1000;
@@ -578,7 +590,7 @@ class GenerateurDeParcours {
           for (let j = Math.max(limiteBasse, limiteHaute); j >= limiteBasse; j--) {
             const ptB = traceActuelle[j];
             const distMetres = this.calculerDistanceHaversine(ptA[1], ptA[0], ptB[1], ptB[0]) * 1000;
-            if (distMetres < 40) {
+            if (distMetres < SEUIL_METRES) {
               meilleurJ = j;
               break;
             }
