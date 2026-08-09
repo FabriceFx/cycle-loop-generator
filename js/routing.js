@@ -93,6 +93,19 @@ class GenerateurDeParcours {
           const distMetres = feature.properties.summary.distance;
           
           coords = this.purgerToutesLesAntennes(coords);
+          
+          // S'assurer que le premier et le dernier point sont strictly identiques au point de départ (fermeture de boucle)
+          if (coords.length > 0) {
+            // ORS inclut parfois des altitudes (3D) dès le départ, il faut conserver l'altitude s'il y en a une, sinon juste écraser X/Y
+            coords[0][0] = lng;
+            coords[0][1] = lat;
+            
+            const ptExtremite = coords[coords.length - 1];
+            if (ptExtremite[0] !== lng || ptExtremite[1] !== lat) {
+              coords.push([...coords[0]]); // duplique le point de départ exact
+            }
+          }
+
           const coordsAvecAltitude = await this.enrichirAvecAltitudes(coords);
           let metriques = this.traiterCoordonneesEtCalculerMetriques(coordsAvecAltitude, distMetres, profilInfo, vitessePerso);
 
@@ -374,10 +387,15 @@ class GenerateurDeParcours {
 
     // Calcul de l'Indice de difficulté (IBP simplifié)
     const ratioDiff = distanceTotaleKm + (denivelePositif / 10);
+    const isPedestre = profilInfo.codeOrs.includes('foot');
+    const seuilBleu = isPedestre ? 15 : 50;
+    const seuilRouge = isPedestre ? 25 : 80;
+    const seuilNoir = isPedestre ? 40 : 120;
+
     let difficulte = { nom: 'Vert (Facile)', couleur: '#10b981', ibp: Math.round(ratioDiff) };
-    if (ratioDiff >= 50) difficulte = { nom: 'Bleu (Modéré)', couleur: '#3b82f6', ibp: Math.round(ratioDiff) };
-    if (ratioDiff >= 80) difficulte = { nom: 'Rouge (Difficile)', couleur: '#f59e0b', ibp: Math.round(ratioDiff) };
-    if (ratioDiff >= 120) difficulte = { nom: 'Noir (Expert)', couleur: '#ef4444', ibp: Math.round(ratioDiff) };
+    if (ratioDiff >= seuilBleu) difficulte = { nom: 'Bleu (Modéré)', couleur: '#3b82f6', ibp: Math.round(ratioDiff) };
+    if (ratioDiff >= seuilRouge) difficulte = { nom: 'Rouge (Difficile)', couleur: '#f59e0b', ibp: Math.round(ratioDiff) };
+    if (ratioDiff >= seuilNoir) difficulte = { nom: 'Noir (Expert)', couleur: '#ef4444', ibp: Math.round(ratioDiff) };
 
     // Optimisation UI : sous-échantillonnage du profil pour le composant Chart.js (max 250 points)
     const MAX_POINTS_CHART = 250;

@@ -191,6 +191,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // -------------------------------------------------------------
+  // 4c. Désactiver direction si vent intelligent coché
+  // -------------------------------------------------------------
+  const checkVentIntelligent = document.getElementById('check-vent-intelligent');
+  if (checkVentIntelligent && selectDirection) {
+    checkVentIntelligent.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        selectDirection.disabled = true;
+        selectDirection.title = TRADUCTIONS[langueActuelle].directionDesactiveeVent;
+        selectDirection.style.opacity = '0.5';
+      } else {
+        selectDirection.disabled = false;
+        selectDirection.title = '';
+        selectDirection.style.opacity = '1';
+      }
+    });
+  }
+
+  // -------------------------------------------------------------
   // 5. Génération du parcours
   // -------------------------------------------------------------
   const lancerCalculParcours = async (nouvelleVariante = false) => {

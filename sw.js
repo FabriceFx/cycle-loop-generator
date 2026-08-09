@@ -26,7 +26,7 @@ self.addEventListener('fetch', (event) => {
   }
   
   event.respondWith(
-    caches.match(event.request)
+    caches.match(event.request, { ignoreSearch: true })
       .then((response) => {
         // Retourne la version en cache si elle existe
         if (response) {
