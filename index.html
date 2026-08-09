@@ -330,8 +330,13 @@
     <div class="contenu-modal">
       <h2 data-i18n="reglagesApi">Configuration API OpenRouteService</h2>
       <p data-i18n="clePerso">Votre clé API personnelle OpenRouteService (optionnel) :</p>
-      <input type="password" id="input-ors-key" class="champ-texte" placeholder="Ex: 5b3ce3597851110001cf6248..."
-        style="margin-bottom: 12px;">
+      <div style="position: relative; margin-bottom: 12px; display: flex; align-items: center;">
+        <input type="password" id="input-ors-key" class="champ-texte" placeholder="Ex: 5b3ce3597851110001cf6248..."
+          style="margin-bottom: 0; padding-right: 40px; flex-grow: 1;">
+        <button type="button" id="btn-toggle-visibilite-api" title="Afficher/Masquer la clé API" style="position: absolute; right: 10px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--couleur-texte-secondaire); padding: 0;">
+          👁️
+        </button>
+      </div>
       <p style="font-size: 0.85rem; color: var(--couleur-texte-secondaire); margin-bottom: 16px; line-height: 1.4;" data-i18n="commentObtenirCle">
         Pour obtenir une clé gratuite : créez un compte sur <a href="https://account.heigit.org/manage/key" target="_blank" style="color: var(--couleur-primaire); text-decoration: none;">account.heigit.org</a>, générez un <strong>Token</strong> (type Free), et collez-le ici.
       </p>
@@ -389,7 +394,7 @@
   <script src="js/map.js?v=3"></script>
   <script src="js/chart.js?v=2"></script>
   <script src="js/export.js?v=2"></script>
-  <script src="js/app.js?v=9"></script>
+  <script src="js/app.js?v=10"></script>
 </body>
 
 </html>

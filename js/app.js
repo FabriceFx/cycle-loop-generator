@@ -480,8 +480,21 @@ document.addEventListener('DOMContentLoaded', () => {
   btnAPropos.addEventListener('click', () => ouvrirModale('modal-a-propos'));
   btnConfigApi.addEventListener('click', () => {
     document.getElementById('input-ors-key').value = CONFIG.orsApiKey;
+    document.getElementById('input-ors-key').type = 'password';
     ouvrirModale('modal-config-api');
   });
+
+  const btnToggleApi = document.getElementById('btn-toggle-visibilite-api');
+  if (btnToggleApi) {
+    btnToggleApi.addEventListener('click', () => {
+      const input = document.getElementById('input-ors-key');
+      if (input.type === 'password') {
+        input.type = 'text';
+      } else {
+        input.type = 'password';
+      }
+    });
+  }
 
   document.getElementById('btn-sauvegarder-api').addEventListener('click', () => {
     const cle = document.getElementById('input-ors-key').value.trim();
