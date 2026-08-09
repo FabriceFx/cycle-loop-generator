@@ -88,6 +88,9 @@ class GestionnaireCarte {
     if (centrer) {
       this.carte.flyTo(this.positionDepart, 13, { duration: 1.2 });
     }
+    if (this.callbackChangementDepart) {
+      this.callbackChangementDepart(this.positionDepart);
+    }
   }
 
   /**

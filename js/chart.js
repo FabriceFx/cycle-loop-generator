@@ -101,6 +101,8 @@ class GraphiqueAltimetrique {
             if (point) {
               this.callbackSurvolPoint(point.lat, point.lng);
             }
+          } else if (this.callbackSurvolPoint) {
+            this.callbackSurvolPoint(null, null);
           }
         }
       }

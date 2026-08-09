@@ -71,8 +71,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Synchroniser le survol du graphique altimétrique avec la carte
   graphiqueAlti.callbackSurvolPoint = (lat, lng) => {
-    carteMgr.afficherMarqueurSurvol(lat, lng);
+    if (lat === null) carteMgr.masquerMarqueurSurvol();
+    else carteMgr.afficherMarqueurSurvol(lat, lng);
   };
+
+  // Météo en direct
+  const majMeteo = async (lat, lng) => {
+    try {
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`);
+      if (res.ok) {
+        const data = await res.json();
+        const t = Math.round(data.current_weather.temperature);
+        const w = data.current_weather.weathercode;
+        let icone = '⛅';
+        if (w === 0) icone = '☀️';
+        else if (w >= 1 && w <= 3) icone = '⛅';
+        else if (w >= 45 && w <= 48) icone = '🌫️';
+        else if (w >= 51 && w <= 67) icone = '🌧️';
+        else if (w >= 71 && w <= 77) icone = '❄️';
+        else if (w >= 80 && w <= 82) icone = '🌦️';
+        else if (w >= 95) icone = '⛈️';
+        const badge = document.getElementById('meteo-badge');
+        if (badge) {
+          badge.innerHTML = `${icone} ${t}°C`;
+          badge.style.display = 'flex';
+        }
+      }
+    } catch(e) {
+      console.warn('Météo indisponible');
+    }
+  };
+  carteMgr.callbackChangementDepart = (pos) => majMeteo(pos[0], pos[1]);
+  // Initial meteo fetch
+  majMeteo(posInitiale[0], posInitiale[1]);
 
   // -------------------------------------------------------------
   // 2. Gestion de la géolocalisation navigateur
@@ -346,8 +377,12 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('theme_app', theme);
   };
 
-  const themeSauvegarde = localStorage.getItem('theme_app') || 'dark';
-  appliquerTheme(themeSauvegarde);
+  const themeStocke = localStorage.getItem('theme_app');
+  let themeInit = themeStocke;
+  if (!themeInit) {
+    themeInit = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+  appliquerTheme(themeInit);
 
   btnToggleTheme.addEventListener('click', () => {
     const nouveauTheme = document.body.classList.contains('theme-sombre') ? 'light' : 'dark';
