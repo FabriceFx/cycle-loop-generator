@@ -11,6 +11,29 @@ class GenerateurDeParcours {
   }
 
   /**
+   * Utilitaire de log structuré : affiche dans la console ET dans le panneau de debug in-app.
+   */
+  debugLog(niveau, message, donnees = null) {
+    const horodatage = new Date().toLocaleTimeString('fr-FR');
+    const texte = donnees !== null
+      ? `[${horodatage}] ${message}: ${JSON.stringify(donnees)}`
+      : `[${horodatage}] ${message}`;
+
+    if (niveau === 'erreur') console.error(texte);
+    else if (niveau === 'avertissement') console.warn(texte);
+    else console.log(texte);
+
+    const panneau = document.getElementById('debug-log-corps');
+    if (panneau) {
+      const ligne = document.createElement('div');
+      ligne.className = `debug-log-ligne debug-${niveau}`;
+      ligne.textContent = texte;
+      panneau.appendChild(ligne);
+      panneau.scrollTop = panneau.scrollHeight;
+    }
+  }
+
+  /**
    * Génère une boucle d'entraînement selon les paramètres spécifiés.
    * 
    * @param {number} lat - Latitude du point de départ
@@ -54,6 +77,7 @@ class GenerateurDeParcours {
     }
 
     const profilInfo = CONFIG.profils[discipline] || CONFIG.profils.gravel;
+    this.debugLog('info', `🚀 Génération boucle`, { discipline, distanceKm, lat: lat.toFixed(4), lng: lng.toFixed(4), prefRoute, directionPref });
 
     // --- OPTIMISATION VENT (MÉTÉO) ---
     if (ventIntelligent) {
@@ -62,69 +86,64 @@ class GenerateurDeParcours {
         const reponseMeteo = await fetch(urlMeteo);
         if (reponseMeteo.ok) {
           const jsonMeteo = await reponseMeteo.json();
-          const capVent = jsonMeteo.current.wind_direction_10m; // 0=Nord, 90=Est, 180=Sud, 270=Ouest
-          
-          // Le vent vient de 'capVent'. 
-          // Si le vent vient de l'Ouest (270°), il souffle vers l'Est.
-          // Pour l'avoir de face à l'aller, il faut partir vers l'Ouest (270°).
-          // On va convertir le cap en direction cardinale privilégiée.
+          const capVent = jsonMeteo.current.wind_direction_10m;
           if (capVent >= 315 || capVent < 45) directionPref = 'nord';
           else if (capVent >= 45 && capVent < 135) directionPref = 'est';
           else if (capVent >= 135 && capVent < 225) directionPref = 'sud';
           else directionPref = 'ouest';
-          
-          console.log(`🌬️ Vent intelligent activé : vent venant de ${capVent}°. Cap initial forcé vers le ${directionPref}.`);
+          this.debugLog('info', `🌬️ Vent intelligent`, { capVent, directionForcée: directionPref });
         }
       } catch (e) {
-        console.warn("Impossible de récupérer la météo pour le vent :", e);
+        this.debugLog('avertissement', 'Météo vent indisponible', e.message);
       }
     }
 
-    // 1. Géométrie : on génère les waypoints mathématiques qui forcent la forme et la direction
+    // 1. Géométrie
     const waypoints = this.genererWaypointsGeometriques(lat, lng, distanceKm, this.graineCourante, prefRoute, eviterNationales, directionPref);
+    this.debugLog('info', `📍 Waypoints générés`, { nombre: waypoints.length, premier: waypoints[0], dernier: waypoints[waypoints.length - 1] });
 
     // 2. Routage via OpenRouteService (si clé API)
     if (CONFIG.orsApiKey) {
+      this.debugLog('info', '🔑 Clé ORS détectée, appel API en cours...');
       try {
         const donneesOrs = await this.calculerViaOrsDirections(waypoints, profilInfo.codeOrs, prefRoute, eviterNationales, eviterDenivele);
         if (donneesOrs) {
           const feature = donneesOrs.features[0];
           let coords = feature.geometry.coordinates;
           const distMetres = feature.properties.summary.distance;
-          
+          this.debugLog('info', '✅ ORS Directions répondu', { pointsReturned: coords.length, distanceM: Math.round(distMetres), elevationInCoords: coords[0].length });
+
+          const avantPurge = coords.length;
           coords = this.purgerToutesLesAntennes(coords);
-          
-          // S'assurer que le premier et le dernier point sont strictly identiques au point de départ (fermeture de boucle)
+          this.debugLog('info', `🧹 Purge antennes`, { avant: avantPurge, après: coords.length });
+
           if (coords.length > 0) {
-            // ORS inclut parfois des altitudes (3D) dès le départ, il faut conserver l'altitude s'il y en a une, sinon juste écraser X/Y
             coords[0][0] = lng;
             coords[0][1] = lat;
-            
             const ptExtremite = coords[coords.length - 1];
             if (ptExtremite[0] !== lng || ptExtremite[1] !== lat) {
-              coords.push([...coords[0]]); // duplique le point de départ exact
+              coords.push([...coords[0]]);
             }
           }
 
+          this.debugLog('info', '🏔️ Enrichissement altitudes...');
           const coordsAvecAltitude = await this.enrichirAvecAltitudes(coords);
+          this.debugLog('info', '✅ Altitudes enrichies', { pointsTotal: coordsAvecAltitude.length, alt0: coordsAvecAltitude[0]?.[2], altMax: Math.max(...coordsAvecAltitude.map(p => p[2])) });
+
           let metriques = this.traiterCoordonneesEtCalculerMetriques(coordsAvecAltitude, distMetres, profilInfo, vitessePerso);
 
           // Extraction des surfaces si disponibles (ORS uniquement)
-          if (donneesOrs.features[0].properties && donneesOrs.features[0].properties.extras && donneesOrs.features[0].properties.extras.surface) {
+          if (donneesOrs.features[0].properties?.extras?.surface) {
             const surfaceSummary = donneesOrs.features[0].properties.extras.surface.summary;
-            let asphalte = 0, gravier = 0, terre = 0;
-            let totalAmount = 0;
-            
+            let asphalte = 0, gravier = 0, terre = 0, totalAmount = 0;
             surfaceSummary.forEach(s => {
               const val = s.value;
               const amt = s.amount;
               totalAmount += amt;
-              // Classification simplifiée selon ORS surface values
               if ([1, 3, 4, 5, 6].includes(val)) asphalte += amt;
               else if ([2, 8, 9, 10].includes(val)) gravier += amt;
-              else terre += amt; // 7, 11, 12, 13, 14, etc.
+              else terre += amt;
             });
-            
             if (totalAmount > 0) {
               metriques.surfaces = {
                 asphalte: Math.round((asphalte / totalAmount) * 100),
@@ -133,12 +152,15 @@ class GenerateurDeParcours {
               };
             }
           }
-          
+
+          this.debugLog('info', '🏁 Calcul terminé', { distanceKm: metriques.distanceKm, d_plus: metriques.denivelePositif, altMin: metriques.altitudeMin, altMax: metriques.altitudeMax });
           return metriques;
         }
       } catch (erreur) {
-        console.warn("Échec OpenRouteService Directions, basculement vers OSRM...", erreur);
+        this.debugLog('erreur', '❌ ORS Directions échoué, basculement OSRM', erreur.message);
       }
+    } else {
+      this.debugLog('avertissement', '⚠️ Pas de clé ORS, utilisation OSRM (sans altitude native)');
     }
 
     // 3. Fallback géométrique OSRM
@@ -231,11 +253,11 @@ class GenerateurDeParcours {
    * Routage via le moteur OSRM (Mode Hybride autonome de secours).
    */
   async calculerViaOsrmDirections(waypoints, distanceKm, profilInfo, latDepart, lngDepart, vitessePerso = null) {
-    // Requête OSRM (Profil dynamique avec radiuses de tolérance et continue_straight)
     const coordsString = waypoints.map(wp => `${wp[0]},${wp[1]}`).join(';');
     const radiuses = waypoints.map(() => '400').join(';');
     const codeOsrm = profilInfo.codeOsrm || 'cycling';
     const osrmUrl = `https://router.project-osrm.org/route/v1/${codeOsrm}/${coordsString}?overview=full&geometries=geojson&steps=true&radiuses=${radiuses}`;
+    this.debugLog('info', `🔀 Appel OSRM (fallback)`, { profil: codeOsrm });
 
     let coordsGeojson = [];
     let distanceMetres = 0;
@@ -245,24 +267,25 @@ class GenerateurDeParcours {
       if (reponseOsrm.ok) {
         const jsonOsrm = await reponseOsrm.json();
         if (jsonOsrm.routes && jsonOsrm.routes.length > 0) {
-          coordsGeojson = jsonOsrm.routes[0].geometry.coordinates; // [[lng, lat], ...]
+          coordsGeojson = jsonOsrm.routes[0].geometry.coordinates;
           distanceMetres = jsonOsrm.routes[0].distance;
+          this.debugLog('info', '✅ OSRM répondu', { points: coordsGeojson.length, distanceM: Math.round(distanceMetres) });
         }
       }
     } catch (e) {
-      console.warn("Erreur OSRM fallback:", e);
+      this.debugLog('erreur', 'OSRM échoué', e.message);
     }
 
-    // Si OSRM n'a pas pu renvoyer la géométrie ou si la route est anormalement courte (< 10% de la distance demandée)
     if (coordsGeojson.length === 0 || distanceMetres < (distanceKm * 100)) {
+      this.debugLog('avertissement', 'OSRM insuffisant, utilisation des waypoints géométriques bruts');
       coordsGeojson = waypoints;
       distanceMetres = distanceKm * 1000;
     }
 
-    // Purge drastique de toutes les antennes, détours en cul-de-sac et impasses parasites
+    const avantPurge = coordsGeojson.length;
     coordsGeojson = this.purgerToutesLesAntennes(coordsGeojson);
+    this.debugLog('info', `🧹 Purge antennes OSRM`, { avant: avantPurge, après: coordsGeojson.length });
 
-    // S'assurer que le premier et le dernier point de la géométrie sont strictly identiques au point de départ
     if (coordsGeojson.length > 0) {
       coordsGeojson[0] = [lngDepart, latDepart];
       const dernierPt = coordsGeojson[coordsGeojson.length - 1];
@@ -271,9 +294,7 @@ class GenerateurDeParcours {
       }
     }
 
-    // Enrichissement en altitudes via Open-Meteo Elevation API
     const coordsAvecAltitude = await this.enrichirAvecAltitudes(coordsGeojson);
-
     return this.traiterCoordonneesEtCalculerMetriques(coordsAvecAltitude, distanceMetres, profilInfo, vitessePerso);
   }
 
@@ -488,12 +509,18 @@ class GenerateurDeParcours {
   }
 
   /**
-   * Filtre de purge drastique des antennes et impasses (cul-de-sac) :
-   * Détecte les nœuds où la trace repasse au même endroit géologique et supprime
-   * intégralement les sous-boucles parasites (antennes) pour ne conserver que la boucle principale.
+   * Filtre de purge des antennes et impasses (cul-de-sac).
+   * IMPORTANT : ne jamais réduire le premier et le dernier point si c'est une boucle fermée
+   * (premier == dernier). La boucle entière serait élaguée sinon.
    */
   purgerToutesLesAntennes(coords) {
     if (!coords || coords.length < 10) return coords;
+
+    // Détection de boucle fermée : si le 1er et le dernier point sont proches (< 50m), c'est une boucle
+    const ptDebut = coords[0];
+    const ptFin = coords[coords.length - 1];
+    const distBoucle = this.calculerDistanceHaversine(ptDebut[1], ptDebut[0], ptFin[1], ptFin[0]) * 1000;
+    const estUneBoucle = distBoucle < 50;
 
     let modification = true;
     let traceActuelle = [...coords];
@@ -509,29 +536,29 @@ class GenerateurDeParcours {
         const ptA = traceActuelle[i];
         nouvelleTrace.push(ptA);
 
-        // Chercher l'indice j le plus éloigné dans l'ordre chronologique qui repasse quasiment au même endroit (< 40m)
         let meilleurJ = -1;
         const limiteBasse = i + 6;
-        
-        // On ne cherche que si on peut faire un saut d'au moins 6 points vers l'avant
-        if (limiteBasse < traceActuelle.length) {
-          // Sécurité : on empêche j d'atteindre la toute fin de la boucle si i est au début.
-          // Cela évite de tronquer le corps complet de la boucle (qui est physiquement refermée).
-          const limiteHaute = Math.min(traceActuelle.length - 1, i + Math.floor(traceActuelle.length * 0.75));
 
-          for (let j = limiteHaute; j >= limiteBasse; j--) {
+        if (limiteBasse < traceActuelle.length) {
+          // Si boucle fermée : ne jamais sauter depuis le début jusqu'à près de la fin
+          // pour ne pas court-circuiter l'intégralité du parcours.
+          const margeFinBoucle = estUneBoucle ? Math.floor(traceActuelle.length * 0.1) : 0;
+          const limiteHaute = Math.min(
+            traceActuelle.length - 1 - margeFinBoucle,
+            i + Math.floor(traceActuelle.length * 0.6) // Max 60% de saut
+          );
+
+          for (let j = Math.max(limiteBasse, limiteHaute); j >= limiteBasse; j--) {
             const ptB = traceActuelle[j];
             const distMetres = this.calculerDistanceHaversine(ptA[1], ptA[0], ptB[1], ptB[0]) * 1000;
-
             if (distMetres < 40) {
               meilleurJ = j;
-              break; // Premier trouvé depuis la fin = le plus grand saut/raccourci d'antenne
+              break;
             }
           }
         }
 
         if (meilleurJ > 0) {
-          // Sauter l'antenne / cul-de-sac directement vers le point de jonction
           i = meilleurJ;
           modification = true;
         } else {
