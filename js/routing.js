@@ -224,13 +224,10 @@ class GenerateurDeParcours {
   async calculerViaOrsDirections(waypoints, codeOrs, prefRoute, eviterNationales, eviterDenivele = false) {
     const url = `${CONFIG.orsApiUrl}/${codeOrs}/geojson`;
 
-    // ORS rejette une requête où premier == dernier point (boucle fermée).
-    // On retire le point de fermeture avant envoi ; on le rajoutera après sur la géométrie retournée.
-    const waypointsOrs = (
-      waypoints.length > 2 &&
-      waypoints[0][0] === waypoints[waypoints.length - 1][0] &&
-      waypoints[0][1] === waypoints[waypoints.length - 1][1]
-    ) ? waypoints.slice(0, -1) : waypoints;
+    // ORS peut gérer une boucle fermée (premier == dernier waypoint) dès lors que
+    // des waypoints intermédiaires existent. La cause initiale du HTTP 400 était
+    // uniquement l'option avoid_features invalide pour foot-*, désormais corrigée.
+    const waypointsOrs = waypoints;
 
     this.debugLog('info', '📤 Waypoints envoyés à ORS', { nombre: waypointsOrs.length });
 
