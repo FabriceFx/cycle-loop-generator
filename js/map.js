@@ -173,6 +173,26 @@ class GestionnaireCarte {
       }).addTo(this.calqueRoute);
     }
 
+    // Ajouter des flèches directionnelles sur l'ensemble du parcours
+    const toutesCoords = coordonnees3D.map(p => [p[1], p[0]]);
+    const traceCompleteInvisble = L.polyline(toutesCoords, { opacity: 0 }).addTo(this.calqueRoute);
+    
+    if (typeof L.polylineDecorator !== 'undefined') {
+      L.polylineDecorator(traceCompleteInvisble, {
+        patterns: [
+          {
+            offset: '5%', 
+            repeat: '10%', // Une flèche tous les 10% du trajet
+            symbol: L.Symbol.arrowHead({
+              pixelSize: 12,
+              polygon: false,
+              pathOptions: { stroke: true, color: '#ffffff', weight: 3, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }
+            })
+          }
+        ]
+      }).addTo(this.calqueRoute);
+    }
+
     this.carte.fitBounds(this.calqueRoute.getBounds(), {
       padding: [40, 40],
       maxZoom: 15
