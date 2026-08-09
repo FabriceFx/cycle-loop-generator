@@ -211,7 +211,7 @@ class GenerateurDeParcours {
       coordinates: waypoints,
       options: optionsOrs,
       extra_info: ["surface"],
-      elevation: false // L'élévation est gérée par Open-Meteo (ORS renvoie souvent 0 ou null par défaut)
+      elevation: true // Option 1 : Demander l'élévation native à ORS
     };
 
     const reponse = await fetch(url, {
@@ -278,19 +278,22 @@ class GenerateurDeParcours {
   }
 
   /**
-   * Enrichit un ensemble complet de coordonnées [lng, lat] avec les altitudes réelles via Open-Meteo.
+   * Enrichit un ensemble complet de coordonnées [lng, lat] avec les altitudes réelles.
+   * Si les coordonnées sont déjà 3D (ex: via ORS), on les utilise. Sinon, fallback sur Open-Meteo.
    */
   async enrichirAvecAltitudes(coords2D) {
-    const TAILLE_LOT = 80;
-    const lots = [];
-    
-    // 1. Découpage en lots
-    for (let i = 0; i < coords2D.length; i += TAILLE_LOT) {
-      lots.push(coords2D.slice(i, i + TAILLE_LOT));
+    // 1. Bypass : Si ORS a déjà fourni les altitudes (coords en 3D), on les utilise directement
+    if (coords2D.length > 0 && coords2D[0].length > 2) {
+      return coords2D.map(p => [p[0], p[1], Math.round(p[2])]);
     }
 
-    // 2. Préparation des requêtes asynchrones parallèles
-    const requetes = lots.map(async (lot) => {
+    // 2. Option 2 : Appel Open-Meteo optimisé pour éviter le Rate Limiting (429)
+    // Au lieu d'un Promise.all de dizaines de requêtes simultanées, on fait des requêtes séquentielles.
+    const TAILLE_LOT = 80;
+    const toutesAltitudes = [];
+    
+    for (let i = 0; i < coords2D.length; i += TAILLE_LOT) {
+      const lot = coords2D.slice(i, i + TAILLE_LOT);
       const lats = lot.map(p => p[1]).join(',');
       const lngs = lot.map(p => p[0]).join(',');
       const urlElevation = `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lngs}`;
@@ -299,19 +302,18 @@ class GenerateurDeParcours {
         const reponse = await fetch(urlElevation);
         if (reponse.ok) {
           const json = await reponse.json();
-          return json.elevation || new Array(lot.length).fill(null);
+          const altitudes = json.elevation || new Array(lot.length).fill(null);
+          toutesAltitudes.push(...altitudes);
+        } else {
+          toutesAltitudes.push(...new Array(lot.length).fill(null));
         }
       } catch (e) {
         console.warn("Erreur de récupération des altitudes pour un lot:", e);
+        toutesAltitudes.push(...new Array(lot.length).fill(null));
       }
-      return new Array(lot.length).fill(null); // Fallback silencieux sur null
-    });
+    }
 
-    // 3. Exécution parallèle
-    const resultatsLots = await Promise.all(requetes);
-    const toutesAltitudes = resultatsLots.flat();
-
-    // 4. Association 1-pour-1 (sans altérer si l'API a échoué)
+    // 3. Association 1-pour-1 (sans altérer si l'API a échoué)
     const coords3D = coords2D.map((coord, index) => {
       let alt = toutesAltitudes[index];
       if (alt === null || alt === undefined) {
