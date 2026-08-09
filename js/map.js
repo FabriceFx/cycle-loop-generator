@@ -11,6 +11,7 @@ class GestionnaireCarte {
     this.calqueRoute = null;
     this.marqueurDepart = null;
     this.marqueurSurvol = null;
+    this.groupePOIs = null;
     this.fondCarteActuel = null;
     this.positionDepart = centreInitial;
     this.callbackChangementDepart = null;
@@ -254,5 +255,67 @@ class GestionnaireCarte {
       console.error("Erreur de recherche d'adresse :", e);
     }
     return null;
+  }
+
+  /**
+   * Récupère et affiche les points d'eau et toilettes via Overpass API dans la BBox de la route.
+   */
+  async chargerPOIs(coordsGeojson) {
+    if (!coordsGeojson || coordsGeojson.length === 0) return;
+    
+    // Calcul Bounding Box
+    let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+    coordsGeojson.forEach(p => {
+      if (p[1] < minLat) minLat = p[1];
+      if (p[1] > maxLat) maxLat = p[1];
+      if (p[0] < minLon) minLon = p[0];
+      if (p[0] > maxLon) maxLon = p[0];
+    });
+
+    const requete = `[out:json][timeout:25];(node["amenity"~"drinking_water|toilets"](${minLat},${minLon},${maxLat},${maxLon}););out body;`;
+    const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(requete)}`;
+
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        this.afficherPOIs(data.elements);
+      }
+    } catch (e) {
+      console.warn("Impossible de charger les POIs :", e);
+    }
+  }
+
+  /**
+   * Affiche les POIs récupérés sur la carte.
+   */
+  afficherPOIs(elements) {
+    this.masquerPOIs();
+    this.groupePOIs = L.layerGroup().addTo(this.carte);
+    
+    elements.forEach(el => {
+      const isWater = el.tags.amenity === 'drinking_water';
+      const iconText = isWater ? '🚰' : '🚻';
+      const tooltip = isWater ? "Point d'eau" : "Toilettes";
+      
+      const icon = L.divIcon({
+        className: 'icone-poi',
+        html: `<div style="font-size: 14px; background: rgba(15,23,42,0.85); border-radius: 50%; padding: 3px; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 5px rgba(0,0,0,0.5);">${iconText}</div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      });
+      
+      L.marker([el.lat, el.lon], { icon }).bindTooltip(tooltip).addTo(this.groupePOIs);
+    });
+  }
+
+  /**
+   * Masque les POIs.
+   */
+  masquerPOIs() {
+    if (this.groupePOIs) {
+      this.carte.removeLayer(this.groupePOIs);
+      this.groupePOIs = null;
+    }
   }
 }

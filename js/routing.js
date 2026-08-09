@@ -45,9 +45,10 @@ class GenerateurDeParcours {
    * @param {string} directionPref - 'aleatoire' | 'nord' | 'est' | 'sud' | 'ouest'
    * @param {boolean} ventIntelligent - Si true, optimise le sens selon la météo
    * @param {number|null} vitessePerso - Vitesse personnalisée sur le plat (km/h)
+   * @param {boolean} eviterDenivele - Si true, optimise pour éviter les pentes fortes (ORS)
    * @returns {Promise<Object>} Données de la route calculée avec métriques et altitudes
    */
-  async genererBoucle(lat, lng, distanceKm, discipline, nouvelleGraine = false, prefRoute = 'equilibre', eviterNationales = false, directionPref = 'aleatoire', ventIntelligent = false, vitessePerso = null) {
+  async genererBoucle(lat, lng, distanceKm, discipline, nouvelleGraine = false, prefRoute = 'equilibre', eviterNationales = false, directionPref = 'aleatoire', ventIntelligent = false, vitessePerso = null, eviterDenivele = false) {
     if (nouvelleGraine) {
       this.graineCourante = Math.floor(Math.random() * 100);
     }
@@ -85,7 +86,7 @@ class GenerateurDeParcours {
     // 2. Routage via OpenRouteService (si clé API)
     if (CONFIG.orsApiKey) {
       try {
-        const donneesOrs = await this.calculerViaOrsDirections(waypoints, profilInfo.codeOrs, prefRoute, eviterNationales);
+        const donneesOrs = await this.calculerViaOrsDirections(waypoints, profilInfo.codeOrs, prefRoute, eviterNationales, eviterDenivele);
         if (donneesOrs) {
           const feature = donneesOrs.features[0];
           let coords = feature.geometry.coordinates;
@@ -179,12 +180,20 @@ class GenerateurDeParcours {
   /**
    * Routage via l'API standard OpenRouteService Directions.
    */
-  async calculerViaOrsDirections(waypoints, codeOrs, prefRoute, eviterNationales) {
+  async calculerViaOrsDirections(waypoints, codeOrs, prefRoute, eviterNationales, eviterDenivele = false) {
     const url = `${CONFIG.orsApiUrl}/${codeOrs}/geojson`;
     const optionsOrs = {};
     if (eviterNationales || prefRoute === 'tranquille') {
       optionsOrs.avoid_features = ['highways', 'tollways'];
     }
+    
+    // Évitement de la pente si option cochée et profil adapté
+    if (eviterDenivele && codeOrs.includes('cycling')) {
+      optionsOrs.profile_params = {
+        weightings: { steepness_difficulty: 3 }
+      };
+    }
+
     const corps = {
       coordinates: waypoints,
       options: optionsOrs,

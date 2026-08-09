@@ -9,6 +9,10 @@
     content="Générez instantanément des boucles sur-mesure pour Vélo (VTT, Route, Gravel), Course à pied et Randonnée selon votre géolocalisation et le nombre de km souhaité. Export GPX gratuit.">
   <meta name="author" content="Fabrice Faucheux (https://faucheux.bzh)">
 
+  <!-- PWA & Mobile -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <!-- Polices Google Fonts (Outfit & Inter) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -131,6 +135,12 @@
             style="accent-color: var(--couleur-primaire); width: 16px; height: 16px;">
           <span data-i18n="eviterGrandesRoutes">Éviter les grandes routes & nationales</span>
         </label>
+        <label class="container-switch"
+          style="margin-top: 10px; display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.82rem; color: var(--couleur-texte-secondaire);">
+          <input type="checkbox" id="check-eviter-denivele"
+            style="accent-color: var(--couleur-primaire); width: 16px; height: 16px;">
+          <span data-i18n="eviterDenivele">Parcours le plus plat possible (Éviter fort dénivelé)</span>
+        </label>
       </div>
 
       <div class="groupe-formulaire">
@@ -246,6 +256,16 @@
           <div class="container-canvas">
             <canvas id="canvas-altitude"></canvas>
           </div>
+        </div>
+
+        <!-- Points d'eau / Commodités -->
+        <div style="margin-top: 16px; margin-bottom: 8px; padding: 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
+          <label class="container-switch"
+            style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem;">
+            <input type="checkbox" id="check-afficher-pois"
+              style="accent-color: var(--couleur-primaire); width: 16px; height: 16px;">
+            <span data-i18n="afficherPois" style="font-weight: 500;">🚰 Afficher les points d'eau et toilettes sur ce parcours</span>
+          </label>
         </div>
 
         <!-- Exportation GPX & Liens Externes -->

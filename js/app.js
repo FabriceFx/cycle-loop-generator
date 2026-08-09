@@ -200,8 +200,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const prefRoute = selectTypeRoutes ? selectTypeRoutes.value : 'equilibre';
     const eviterNat = checkEviterNationales ? checkEviterNationales.checked : false;
     const directionPref = selectDirection ? selectDirection.value : 'aleatoire';
+    const checkEviterDenivele = document.getElementById('check-eviter-denivele');
+    const eviterDenivele = checkEviterDenivele ? checkEviterDenivele.checked : false;
 
-    const paramString = `${latLng[0]}_${latLng[1]}_${dist}_${disc}_${prefRoute}_${eviterNat}_${directionPref}`;
+    const paramString = `${latLng[0]}_${latLng[1]}_${dist}_${disc}_${prefRoute}_${eviterNat}_${eviterDenivele}_${directionPref}`;
     if (!nouvelleVariante && derniersParametres === paramString) {
       nouvelleVariante = true;
     }
@@ -224,7 +226,8 @@ document.addEventListener('DOMContentLoaded', () => {
         eviterNat,
         directionPref,
         ventIntelligent,
-        vitessePerso
+        vitessePerso,
+        eviterDenivele
       );
 
       // Mise à jour de l'affichage
@@ -232,6 +235,13 @@ document.addEventListener('DOMContentLoaded', () => {
         afficherStatistiques(donneesRouteCourante);
         carteMgr.afficherTraceParcours(donneesRouteCourante.coordonnees);
         graphiqueAlti.afficherProfil(donneesRouteCourante.profilAltimetrique, donneesRouteCourante.discipline.couleur);
+        
+        const checkPois = document.getElementById('check-afficher-pois');
+        if (checkPois && checkPois.checked) {
+          carteMgr.chargerPOIs(donneesRouteCourante.coordonnees);
+        } else {
+          carteMgr.masquerPOIs();
+        }
       }
     } catch (e) {
       console.error("Erreur lors de la génération du parcours :", e);
@@ -460,6 +470,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function masquerChargement() {
     overlayIndicateur.classList.remove('active');
+  }
+
+  // Gestion affichage POIs manuel
+  const checkPois = document.getElementById('check-afficher-pois');
+  if (checkPois) {
+    checkPois.addEventListener('change', (e) => {
+      if (e.target.checked && donneesRouteCourante) {
+        carteMgr.chargerPOIs(donneesRouteCourante.coordonnees);
+      } else {
+        carteMgr.masquerPOIs();
+      }
+    });
+  }
+
+  // Enregistrement Service Worker (PWA)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(err => {
+        console.warn('Erreur SW:', err);
+      });
+    });
   }
 
   // Tenter de géolocaliser automatiquement au premier lancement (silencieusement)

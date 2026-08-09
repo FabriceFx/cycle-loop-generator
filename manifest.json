@@ -1,0 +1,16 @@
+{
+  "name": "Générateur de parcours sportif",
+  "short_name": "Parcours",
+  "description": "Créez vos boucles vélo, course à pied et rando sur-mesure",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
