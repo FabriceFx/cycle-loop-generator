@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elem.tagName === 'INPUT' && elem.hasAttribute('placeholder')) {
           elem.placeholder = t[cle];
         } else {
-          elem.textContent = t[cle];
+          elem.innerHTML = t[cle];
         }
       }
     });
