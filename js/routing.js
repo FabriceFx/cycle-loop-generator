@@ -217,12 +217,21 @@ class GenerateurDeParcours {
    */
   async calculerViaOrsDirections(waypoints, codeOrs, prefRoute, eviterNationales, eviterDenivele = false) {
     const url = `${CONFIG.orsApiUrl}/${codeOrs}/geojson`;
+
+    // ORS rejette une requête où premier == dernier point (boucle fermée).
+    // On retire le point de fermeture avant envoi ; on le rajoutera après sur la géométrie retournée.
+    const waypointsOrs = (
+      waypoints.length > 2 &&
+      waypoints[0][0] === waypoints[waypoints.length - 1][0] &&
+      waypoints[0][1] === waypoints[waypoints.length - 1][1]
+    ) ? waypoints.slice(0, -1) : waypoints;
+
+    this.debugLog('info', '📤 Waypoints envoyés à ORS', { nombre: waypointsOrs.length });
+
     const optionsOrs = {};
     if (eviterNationales || prefRoute === 'tranquille') {
       optionsOrs.avoid_features = ['highways', 'tollways'];
     }
-    
-    // Évitement de la pente si option cochée et profil adapté
     if (eviterDenivele && codeOrs.includes('cycling')) {
       optionsOrs.profile_params = {
         weightings: { steepness_difficulty: 3 }
@@ -230,11 +239,15 @@ class GenerateurDeParcours {
     }
 
     const corps = {
-      coordinates: waypoints,
-      options: optionsOrs,
-      extra_info: ["surface"],
-      elevation: true // Option 1 : Demander l'élévation native à ORS
+      coordinates: waypointsOrs,
+      extra_info: ['surface'],
+      elevation: true
     };
+
+    // N'ajouter 'options' que s'il est non vide (un objet vide peut déclencher un 400)
+    if (Object.keys(optionsOrs).length > 0) {
+      corps.options = optionsOrs;
+    }
 
     const reponse = await fetch(url, {
       method: 'POST',
@@ -245,7 +258,11 @@ class GenerateurDeParcours {
       body: JSON.stringify(corps)
     });
 
-    if (!reponse.ok) throw new Error(`Erreur HTTP ORS : ${reponse.status}`);
+    if (!reponse.ok) {
+      const erreurTexte = await reponse.text();
+      this.debugLog('erreur', `ORS HTTP ${reponse.status}`, erreurTexte.substring(0, 200));
+      throw new Error(`Erreur HTTP ORS : ${reponse.status}`);
+    }
     return await reponse.json();
   }
 
