@@ -666,8 +666,11 @@ html, body {
     max-height: max-content;
   }
   
-  .panneau-flottant.replie .groupe-formulaire {
-    display: none;
+  .panneau-flottant.replie .groupe-formulaire,
+  .panneau-flottant.replie .groupe-boutons-action,
+  .panneau-flottant.replie hr,
+  .panneau-flottant.replie .panneau-resultats {
+    display: none !important;
   }
 
   /* Touch targets : tous les boutons principaux font au moins 48px de haut */
