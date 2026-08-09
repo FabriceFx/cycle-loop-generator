@@ -65,11 +65,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Gestion du Panneau Flottant sur Mobile
   const panneauControle = document.getElementById('panneau-controle');
+  const enTeteApp = document.querySelector('.en-tete-app');
   const dragHandle = document.querySelector('.drag-handle');
-  if (dragHandle && panneauControle) {
-    dragHandle.addEventListener('click', () => {
-      panneauControle.classList.toggle('replie');
-    });
+  
+  if (panneauControle) {
+    const togglePanneau = (e) => {
+      // Éviter de fermer si on clique sur les boutons d'action (menu, paramètres, etc.)
+      if (e && e.target.closest('.actions-container')) return;
+      if (window.innerWidth <= 768) {
+        panneauControle.classList.toggle('replie');
+      }
+    };
+    
+    if (dragHandle) dragHandle.addEventListener('click', togglePanneau);
+    if (enTeteApp) {
+      enTeteApp.addEventListener('click', togglePanneau);
+      enTeteApp.style.cursor = 'pointer'; // Indique que c'est cliquable
+    }
   }
 
   // -------------------------------------------------------------
