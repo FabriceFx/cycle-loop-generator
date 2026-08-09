@@ -284,11 +284,14 @@ class GenerateurDeParcours {
   async enrichirAvecAltitudes(coords2D) {
     // 1. Bypass : Si ORS a déjà fourni les altitudes (coords en 3D), on les utilise directement
     if (coords2D.length > 0 && coords2D[0].length > 2) {
-      return coords2D.map(p => [p[0], p[1], Math.round(p[2])]);
+      // Vérifier que ORS n'a pas renvoyé un profil 100% plat à 0 (ce qui arrive si le DEM ORS est manquant)
+      const aDeLAltitude = coords2D.some(p => p[2] !== 0 && p[2] !== null);
+      if (aDeLAltitude) {
+        return coords2D.map(p => [p[0], p[1], Math.round(p[2])]);
+      }
     }
 
-    // 2. Option 2 : Appel Open-Meteo optimisé pour éviter le Rate Limiting (429)
-    // Au lieu d'un Promise.all de dizaines de requêtes simultanées, on fait des requêtes séquentielles.
+    // 2. Option 2 : Appel Open-Meteo (séquentiel) avec Tertiary Fallback sur OpenTopoData
     const TAILLE_LOT = 80;
     const toutesAltitudes = [];
     
@@ -305,10 +308,27 @@ class GenerateurDeParcours {
           const altitudes = json.elevation || new Array(lot.length).fill(null);
           toutesAltitudes.push(...altitudes);
         } else {
-          toutesAltitudes.push(...new Array(lot.length).fill(null));
+          // Si Open-Meteo échoue (ex: 429 Rate Limit quotidien atteint), on bascule sur OpenTopoData
+          try {
+            const locsTopo = lot.map(p => `${p[1]},${p[0]}`).join('|');
+            const urlTopo = `https://api.opentopodata.org/v1/mapzen?locations=${locsTopo}`;
+            const reponseTopo = await fetch(urlTopo);
+            if (reponseTopo.ok) {
+              const jsonTopo = await reponseTopo.json();
+              const altitudes = jsonTopo.results ? jsonTopo.results.map(r => r.elevation) : new Array(lot.length).fill(null);
+              toutesAltitudes.push(...altitudes);
+            } else {
+              toutesAltitudes.push(...new Array(lot.length).fill(null));
+            }
+            // OpenTopoData limite à 1 requête par seconde
+            await new Promise(resolve => setTimeout(resolve, 1100));
+          } catch (eTopo) {
+            console.warn("Erreur fallback OpenTopoData:", eTopo);
+            toutesAltitudes.push(...new Array(lot.length).fill(null));
+          }
         }
       } catch (e) {
-        console.warn("Erreur de récupération des altitudes pour un lot:", e);
+        console.warn("Erreur de récupération des altitudes (Open-Meteo):", e);
         toutesAltitudes.push(...new Array(lot.length).fill(null));
       }
     }
