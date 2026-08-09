@@ -386,7 +386,7 @@ class GenerateurDeParcours {
     // 2. ORS Elevation API : une seule requête pour toute la trace, pas de limite 414
     if (CONFIG.orsApiKey) {
       try {
-        const urlElevationOrs = 'https://api.openrouteservice.org/elevation/line';
+        const urlElevationOrs = 'https://api.heigit.org/elevation/line';
         const coordsTronquees = coords2D.map(p => [
           parseFloat(p[0].toFixed(6)),
           parseFloat(p[1].toFixed(6))

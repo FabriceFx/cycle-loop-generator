@@ -11,7 +11,7 @@ const CONFIG = {
   orsApiKey: localStorage.getItem('ors_api_key') || 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjNlNzNlYzBkNmVkYTQ4NGQ5MzU0YTE2NGJlNmRjZjk2IiwiaCI6Im11cm11cjY0In0=',
 
   // Endpoints API OpenRouteService
-  orsApiUrl: 'https://api.openrouteservice.org/v2/directions',
+  orsApiUrl: 'https://api.heigit.org/v2/directions',
 
   // Profils de déplacement selon la discipline
   profils: {
