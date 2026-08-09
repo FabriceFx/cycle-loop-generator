@@ -222,10 +222,16 @@ class GenerateurDeParcours {
       seedEffectif = (graine + (decalageSeed[directionPref] || 0)) % 100;
     }
 
+    // Ajustement dynamique du nombre de points pour forcer la circularité
+    // Pour les petits parcours (5km), 5 points forcent trop de détours sur des réseaux peu denses.
+    let nbPoints = 5;
+    if (distanceKm <= 10) nbPoints = 3;
+    else if (distanceKm <= 30) nbPoints = 4;
+
     const optionsRoundTrip = {
       round_trip: {
         length: distanceKm * 1000, // en mètres
-        points: 5,
+        points: nbPoints,
         seed: seedEffectif
       }
     };
