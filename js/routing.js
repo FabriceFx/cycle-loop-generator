@@ -211,7 +211,7 @@ class GenerateurDeParcours {
       coordinates: waypoints,
       options: optionsOrs,
       extra_info: ["surface"],
-      elevation: true // Demander l'élévation native à ORS
+      elevation: false // L'élévation est gérée par Open-Meteo (ORS renvoie souvent 0 ou null par défaut)
     };
 
     const reponse = await fetch(url, {
@@ -278,16 +278,9 @@ class GenerateurDeParcours {
   }
 
   /**
-   * Enrichit un ensemble complet de coordonnées [lng, lat] avec les altitudes réelles.
-   * Si les coordonnées sont déjà 3D (ex: via ORS), on les utilise. Sinon, fallback sur Open-Meteo.
+   * Enrichit un ensemble complet de coordonnées [lng, lat] avec les altitudes réelles via Open-Meteo.
    */
   async enrichirAvecAltitudes(coords2D) {
-    // 1. Si ORS a déjà fourni les altitudes (coords en 3D), on les utilise directement
-    if (coords2D.length > 0 && coords2D[0].length > 2) {
-      return coords2D.map(p => [p[0], p[1], Math.round(p[2])]);
-    }
-
-    // 2. Fallback Open-Meteo (ex: moteur OSRM pur)
     const TAILLE_LOT = 80;
     const lots = [];
     
