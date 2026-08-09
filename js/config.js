@@ -7,7 +7,8 @@
 
 const CONFIG = {
   // Clé API OpenRouteService (Mode Hybride : fallback automatique si non définie ou quota dépassé)
-  orsApiKey: localStorage.getItem('ors_api_key') || '',
+  // La clé embarquée est utilisée en fallback si l'utilisateur n'en a pas saisi une dans les paramètres.
+  orsApiKey: localStorage.getItem('ors_api_key') || 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjNlNzNlYzBkNmVkYTQ4NGQ5MzU0YTE2NGJlNmRjZjk2IiwiaCI6Im11cm11cjY0In0=',
 
   // Endpoints API OpenRouteService
   orsApiUrl: 'https://api.openrouteservice.org/v2/directions',

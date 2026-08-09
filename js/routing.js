@@ -279,10 +279,14 @@ class GenerateurDeParcours {
 
   /**
    * Enrichit un ensemble complet de coordonnées [lng, lat] avec les altitudes réelles.
-   * Si les coordonnées sont déjà 3D (ex: via ORS), on les utilise. Sinon, fallback sur Open-Meteo.
+   *
+   * Stratégie par ordre de priorité :
+   *   1. Bypass direct si ORS a déjà livré des coords 3D non nulles (elevation:true dans la requête de routage).
+   *   2. ORS Elevation API (/elevation/line) — source SRTM fiable, pas de quota journalier séparé.
+   *   3. Open-Meteo (GET, lots de 50 points, coordonnées tronquées à 5 décimales) — fallback sans clé.
    */
   async enrichirAvecAltitudes(coords2D) {
-    // 1. Bypass strict : Si ORS a fourni de VRAIES altitudes (au moins un point avec une altitude non nulle)
+    // 1. Bypass strict : ORS a fourni de VRAIES altitudes 3D (au moins un point > 0)
     if (coords2D.length > 0 && coords2D[0].length > 2) {
       const aDeLAltitude = coords2D.some(p => p[2] !== 0 && p[2] !== null);
       if (aDeLAltitude) {
@@ -290,45 +294,75 @@ class GenerateurDeParcours {
       }
     }
 
-    // 2. Option 2 : Appel Open-Meteo optimisé
-    // Réduction de la taille du lot à 50 pour plus de sécurité sur la limite de caractères de l'URL
-    const TAILLE_LOT = 50; 
+    // 2. ORS Elevation API : une seule requête pour toute la trace, pas de limite 414
+    if (CONFIG.orsApiKey) {
+      try {
+        const urlElevationOrs = 'https://api.openrouteservice.org/elevation/line';
+        const coordsTronquees = coords2D.map(p => [
+          parseFloat(p[0].toFixed(6)),
+          parseFloat(p[1].toFixed(6))
+        ]);
+        const reponseElev = await fetch(urlElevationOrs, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': CONFIG.orsApiKey
+          },
+          body: JSON.stringify({
+            format_in: 'geojson',
+            format_out: 'geojson',
+            geometry: { type: 'LineString', coordinates: coordsTronquees }
+          })
+        });
+
+        if (reponseElev.ok) {
+          const jsonElev = await reponseElev.json();
+          const coords3D_ORS = jsonElev.geometry && jsonElev.geometry.coordinates;
+          if (coords3D_ORS && coords3D_ORS.length === coords2D.length) {
+            const aDeLAltitude = coords3D_ORS.some(p => p[2] !== 0 && p[2] !== null);
+            if (aDeLAltitude) {
+              console.log('✅ Altitudes récupérées via ORS Elevation API.');
+              return coords3D_ORS.map(p => [p[0], p[1], Math.round(p[2])]);
+            }
+          }
+        } else {
+          console.warn(`ORS Elevation API erreur ${reponseElev.status}, basculement sur Open-Meteo.`);
+        }
+      } catch (e) {
+        console.warn('Erreur ORS Elevation API, basculement sur Open-Meteo :', e);
+      }
+    }
+
+    // 3. Fallback Open-Meteo (séquentiel, lots de 50, toFixed(5) pour éviter erreur 414)
+    const TAILLE_LOT = 50;
     const toutesAltitudes = [];
-    
+
     for (let i = 0; i < coords2D.length; i += TAILLE_LOT) {
       const lot = coords2D.slice(i, i + TAILLE_LOT);
-      
-      // Tronquer à 5 décimales (~1 mètre de précision) pour éviter l'erreur 414 URI Too Long
       const lats = lot.map(p => p[1].toFixed(5)).join(',');
       const lngs = lot.map(p => p[0].toFixed(5)).join(',');
       const urlElevation = `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lngs}`;
-      
+
       try {
         const reponse = await fetch(urlElevation);
         if (reponse.ok) {
           const json = await reponse.json();
-          const altitudes = json.elevation || new Array(lot.length).fill(null);
-          toutesAltitudes.push(...altitudes);
+          toutesAltitudes.push(...(json.elevation || new Array(lot.length).fill(null)));
         } else {
-          console.warn(`Erreur Open-Meteo status: ${reponse.status}`);
+          console.warn(`Open-Meteo erreur ${reponse.status}`);
           toutesAltitudes.push(...new Array(lot.length).fill(null));
         }
       } catch (e) {
-        console.warn("Erreur de récupération des altitudes pour un lot:", e);
+        console.warn('Erreur Open-Meteo lot :', e);
         toutesAltitudes.push(...new Array(lot.length).fill(null));
       }
     }
 
-    // 3. Association 1-pour-1
-    const coords3D = coords2D.map((coord, index) => {
-      let alt = toutesAltitudes[index];
-      if (alt === null || alt === undefined) {
-        alt = coord.length > 2 ? coord[2] : 0; 
-      }
+    // Association 1-pour-1 avec valeur de secours à 0 si tout a échoué
+    return coords2D.map((coord, index) => {
+      const alt = toutesAltitudes[index] ?? (coord.length > 2 ? coord[2] : 0);
       return [coord[0], coord[1], Math.round(alt)];
     });
-
-    return coords3D;
   }
 
 
