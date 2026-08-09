@@ -305,29 +305,13 @@ class GenerateurDeParcours {
     const resultatsLots = await Promise.all(requetes);
     const toutesAltitudes = resultatsLots.flat();
 
-    // Interpolation des valeurs null/manquantes pour éviter les "trous" à 0m
-    let derniereAltValide = null;
-    for (let i = 0; i < toutesAltitudes.length; i++) {
-      if (toutesAltitudes[i] !== null && toutesAltitudes[i] !== undefined) {
-        derniereAltValide = toutesAltitudes[i];
-        break;
-      }
-    }
-    
-    // Si toutes les API ont échoué, on évite 0 (mettons 50m par défaut pour ne pas fausser complètement l'affichage)
-    if (derniereAltValide === null) derniereAltValide = 50;
-
-    for (let i = 0; i < toutesAltitudes.length; i++) {
-      if (toutesAltitudes[i] === null || toutesAltitudes[i] === undefined) {
-        toutesAltitudes[i] = derniereAltValide;
-      } else {
-        derniereAltValide = toutesAltitudes[i];
-      }
-    }
-
-    // 4. Association 1-pour-1
+    // 4. Association 1-pour-1 (sans altérer si l'API a échoué)
     const coords3D = coords2D.map((coord, index) => {
-      return [coord[0], coord[1], Math.round(toutesAltitudes[index])];
+      let alt = toutesAltitudes[index];
+      if (alt === null || alt === undefined) {
+        alt = coord.length > 2 ? coord[2] : 0; // On garde l'altitude existante, ou 0 par défaut
+      }
+      return [coord[0], coord[1], Math.round(alt)];
     });
 
     return coords3D;
